@@ -255,8 +255,20 @@ export function useVoice(options: UseVoiceOptions = {}) {
         stopAudioLevelMonitoring();
         stream.getTracks().forEach((track) => track.stop());
 
+        if (audioChunksRef.current.length === 0) {
+          setError('录音时长太短，没有捕获到音频');
+          setState('error');
+          return;
+        }
+
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const arrayBuffer = await audioBlob.arrayBuffer();
+
+        if (arrayBuffer.byteLength === 0) {
+          setError('录音文件为空');
+          setState('error');
+          return;
+        }
 
         try {
           const response = await fetch('/api/voice/stt', {
@@ -281,7 +293,8 @@ export function useVoice(options: UseVoiceOptions = {}) {
           if (result.success && result.data.text) {
             await sendToLLM(result.data.text);
           } else {
-            setState('idle');
+            setError('未能识别到语音，请重试');
+            setState('error');
           }
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Speech recognition failed';

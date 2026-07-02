@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --color-celestial-deep: #0a0f1c;
+  --color-celestial-panel: #111827;
+  --color-celestial-surface: #1f2937;
+  --color-lumi-accent: #38bdf8;
+  --color-lumi-glow: rgba(56, 189, 248, 0.4);
+}
+
+:root {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+  background-color: var(--color-celestial-deep);
+  color: #e5e7eb;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top, #162044 0%, var(--color-celestial-deep) 55%);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+/* Message prose */
+.prose pre {
+  background: #0f172a;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+
+.prose code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
+}
+
+.prose p {
+  margin: 0.5rem 0;
+}
+
+.prose p:first-child {
+  margin-top: 0;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+@keyframes flow-line {
+  from {
+    stroke-dashoffset: 16;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-flow-line {
+  animation: flow-line 1s linear infinite;
+}

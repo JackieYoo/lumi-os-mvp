@@ -89,7 +89,6 @@ CREATE TABLE IF NOT EXISTS memories (
 );
 
 CREATE INDEX IF NOT EXISTS idx_memories_user ON memories(user_id);
-CREATE INDEX IF NOT EXISTS idx_memories_source ON memories(source);
 
 CREATE TABLE IF NOT EXISTS knowledge_files (
   id TEXT PRIMARY KEY,
@@ -115,5 +114,6 @@ async function runMigrations(connection: Database<sqlite3.Database, sqlite3.Stat
 
   if (!hasSource) {
     await connection.exec('ALTER TABLE memories ADD COLUMN source TEXT');
+    await connection.exec('CREATE INDEX IF NOT EXISTS idx_memories_source ON memories(source)');
   }
 }

@@ -78,8 +78,11 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string = MI
       throw new AppError(502, 'STT returned unexpected response', 'STT_UNEXPECTED_RESPONSE');
     }
 
-    if (text.length > 10000) {
-      logger.error('STT returned suspiciously long text', { length: text.length });
+    if (text.length > 10000 || text.trim().toLowerCase().startsWith('<!doctype') || text.trim().toLowerCase().startsWith('<html')) {
+      logger.error('STT returned suspiciously long or non-text response', {
+        length: text.length,
+        preview: text.slice(0, 200),
+      });
       throw new AppError(502, 'STT returned garbled audio, please try again', 'STT_GARBLED');
     }
 

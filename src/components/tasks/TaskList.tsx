@@ -23,10 +23,10 @@ function statusIcon(status: TaskStatus) {
     case 'paused':
       return <PauseCircle size={16} className="text-amber-400" />;
     case 'cancelled':
-      return <XCircle size={16} className="text-slate-400" />;
+      return <XCircle size={16} className="text-text-tertiary" />;
     case 'pending':
     default:
-      return <Clock size={16} className="text-slate-400" />;
+      return <Clock size={16} className="text-text-tertiary" />;
   }
 }
 
@@ -52,17 +52,17 @@ export function TaskList({
 }: TaskListProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="border-b border-slate-700/50 p-4">
-        <h2 className="text-sm font-medium text-slate-300">任务列表</h2>
+      <div className="border-b border-celestial-border p-4">
+        <h2 className="text-sm font-medium text-text-secondary">任务列表</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3">
         {loading && (
-          <p className="py-8 text-center text-sm text-slate-500">加载中…</p>
+          <p className="py-8 text-center text-sm text-text-tertiary">加载中…</p>
         )}
 
         {!loading && tasks.length === 0 && (
-          <div className="py-8 text-center text-sm text-slate-500">
+          <div className="py-8 text-center text-sm text-text-tertiary">
             暂无任务
           </div>
         )}
@@ -74,7 +74,7 @@ export function TaskList({
               className={`cursor-pointer transition hover:bg-white/5 ${
                 selectedId === task.id
                   ? 'border-lumi-accent/50 bg-lumi-accent/10'
-                  : 'border-slate-700/50'
+                  : 'border-celestial-border'
               }`}
               onClick={() => onSelect(task.id)}
             >
@@ -82,11 +82,11 @@ export function TaskList({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     {statusIcon(task.status)}
-                    <span className="truncate text-sm font-medium text-white">
+                    <span className="truncate text-sm font-medium text-text-primary">
                       {task.title}
                     </span>
                   </div>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                  <div className="mt-1 flex items-center gap-2 text-xs text-text-tertiary">
                     <span>{statusLabel(task.status)}</span>
                     {task.scheduleCron && <span>· 周期</span>}
                     <span>· {new Date(task.updatedAt).toLocaleString('zh-CN')}</span>

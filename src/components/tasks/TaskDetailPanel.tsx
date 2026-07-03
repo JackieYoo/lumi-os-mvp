@@ -17,10 +17,10 @@ function stepStatusIcon(status: TaskStepStatus) {
     case 'running':
       return <Loader2 size={14} className="animate-spin text-lumi-accent" />;
     case 'skipped':
-      return <PauseCircle size={14} className="text-slate-400" />;
+      return <PauseCircle size={14} className="text-text-tertiary" />;
     case 'pending':
     default:
-      return <Clock size={14} className="text-slate-500" />;
+      return <Clock size={14} className="text-text-tertiary" />;
   }
 }
 
@@ -46,13 +46,13 @@ export function TaskDetailPanel({ task, onRun }: TaskDetailPanelProps) {
 
   return (
     <div className="space-y-4">
-      <Card className="border-slate-700/50">
+      <Card className="border-celestial-border">
         <CardHeader>
           <div className="flex items-start justify-between gap-3">
             <div>
               <CardTitle>{task.title}</CardTitle>
               {task.description && (
-                <p className="mt-1 text-sm text-slate-400">{task.description}</p>
+                <p className="mt-1 text-sm text-text-tertiary">{task.description}</p>
               )}
             </div>
             {canRun && (
@@ -64,14 +64,14 @@ export function TaskDetailPanel({ task, onRun }: TaskDetailPanelProps) {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full bg-slate-800 px-2.5 py-1 text-slate-300">
+            <span className="rounded-full bg-celestial-surface px-2.5 py-1 text-text-secondary">
               状态：{task.status}
             </span>
-            <span className="rounded-full bg-slate-800 px-2.5 py-1 text-slate-300">
+            <span className="rounded-full bg-celestial-surface px-2.5 py-1 text-text-secondary">
               触发：{task.triggerType}
             </span>
             {task.scheduleCron && (
-              <span className="rounded-full bg-slate-800 px-2.5 py-1 text-slate-300">
+              <span className="rounded-full bg-celestial-surface px-2.5 py-1 text-text-secondary">
                 Cron：{task.scheduleCron}
               </span>
             )}
@@ -90,7 +90,7 @@ export function TaskDetailPanel({ task, onRun }: TaskDetailPanelProps) {
         </CardContent>
       </Card>
 
-      <Card className="border-slate-700/50">
+      <Card className="border-celestial-border">
         <CardHeader>
           <CardTitle>执行步骤</CardTitle>
         </CardHeader>
@@ -98,17 +98,17 @@ export function TaskDetailPanel({ task, onRun }: TaskDetailPanelProps) {
           {task.steps.map((step, index) => (
             <div
               key={step.id}
-              className="rounded-xl border border-slate-700/50 bg-celestial-deep/50 p-4"
+              className="rounded-xl border border-celestial-border bg-celestial-deep/50 p-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-xs text-slate-400">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-celestial-surface text-xs text-text-tertiary">
                     {index + 1}
                   </span>
                   <div>
-                    <p className="text-sm font-medium text-white">{step.description}</p>
+                    <p className="text-sm font-medium text-text-primary">{step.description}</p>
                     {step.toolName && (
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-text-tertiary">
                         工具：{step.toolName}
                       </p>
                     )}
@@ -116,7 +116,7 @@ export function TaskDetailPanel({ task, onRun }: TaskDetailPanelProps) {
                 </div>
                 <div className="flex items-center gap-1.5 text-xs">
                   {stepStatusIcon(step.status)}
-                  <span className="text-slate-400">{stepStatusLabel(step.status)}</span>
+                  <span className="text-text-tertiary">{stepStatusLabel(step.status)}</span>
                 </div>
               </div>
 
@@ -127,8 +127,8 @@ export function TaskDetailPanel({ task, onRun }: TaskDetailPanelProps) {
               )}
 
               {step.result !== null && step.result !== undefined && (
-                <div className="mt-3 max-h-48 overflow-auto rounded-lg bg-slate-800/50 p-2.5">
-                  <pre className="whitespace-pre-wrap text-xs text-slate-300">
+                <div className="mt-3 max-h-48 overflow-auto rounded-lg bg-celestial-surface/50 p-2.5">
+                  <pre className="whitespace-pre-wrap text-xs text-text-secondary">
                     {formatValue(step.result)}
                   </pre>
                 </div>

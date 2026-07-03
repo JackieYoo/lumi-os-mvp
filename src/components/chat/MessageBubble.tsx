@@ -24,12 +24,12 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     <div className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
+          'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm',
           isUser
-            ? 'rounded-br-none bg-lumi-accent text-celestial-deep'
+            ? 'rounded-br-none bg-gradient-to-br from-lumi-accent to-lumi-accent-deep text-celestial-deep shadow-[0_4px_20px_rgba(14,165,233,0.25)]'
             : isTool
-              ? 'rounded-bl-none border border-lumi-accent/30 bg-lumi-accent/10 text-lumi-accent'
-              : 'rounded-bl-none bg-celestial-surface text-slate-100'
+              ? 'rounded-bl-none border border-lumi-accent/30 bg-lumi-accent/10 text-lumi-accent-soft'
+              : 'rounded-bl-none border border-celestial-border bg-celestial-surface/70 text-text-primary backdrop-blur-sm'
         )}
       >
         {isTool && message.toolName && (

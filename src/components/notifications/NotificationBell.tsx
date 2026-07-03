@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
+import { cn } from '../../lib/utils.js';
 import { apiRequest } from '../../lib/api.js';
 import { getSocket } from '../../lib/socket.js';
 
-export function NotificationBell({ onClick }: { onClick?: () => void }) {
+interface NotificationBellProps {
+  onClick?: () => void;
+  hideIcon?: boolean;
+  className?: string;
+}
+
+export function NotificationBell({ onClick, hideIcon, className }: NotificationBellProps) {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const loadCount = async () => {
@@ -39,17 +46,31 @@ export function NotificationBell({ onClick }: { onClick?: () => void }) {
     };
   }, []);
 
+  const badge = unreadCount > 0 && (
+    <span
+      className={cn(
+        'absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-status-error px-1 text-[10px] font-medium text-white shadow-lg',
+        hideIcon && 'relative right-auto top-auto'
+      )}
+    >
+      {unreadCount > 99 ? '99+' : unreadCount}
+    </span>
+  );
+
+  if (hideIcon) {
+    return <div className={cn('relative', className)}>{badge}</div>;
+  }
+
   return (
     <button
       onClick={onClick}
-      className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 transition hover:bg-white/5 hover:text-white"
+      className={cn(
+        'relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 transition hover:bg-white/5 hover:text-white',
+        className
+      )}
     >
       <Bell size={18} />
-      {unreadCount > 0 && (
-        <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-medium text-white">
-          {unreadCount > 99 ? '99+' : unreadCount}
-        </span>
-      )}
+      {badge}
     </button>
   );
 }

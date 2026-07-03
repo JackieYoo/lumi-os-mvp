@@ -128,7 +128,7 @@ export default function Tasks() {
       }
     >
       <div className="flex h-full">
-        <div className="w-full border-r border-slate-700/50 lg:w-96">
+        <div className="w-full border-r border-celestial-border lg:w-96">
           <TaskList
             tasks={tasks}
             loading={loading}
@@ -142,7 +142,7 @@ export default function Tasks() {
           {selectedTask ? (
             <TaskDetailPanel task={selectedTask} onRun={() => handleRun(selectedTask.id)} />
           ) : (
-            <div className="flex h-full flex-col items-center justify-center text-slate-500">
+            <div className="flex h-full flex-col items-center justify-center text-text-tertiary">
               <p>选择一个任务查看详情</p>
             </div>
           )}

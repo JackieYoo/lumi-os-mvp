@@ -88,11 +88,11 @@ export default function Notifications() {
     >
       <div className="mx-auto flex h-full max-w-2xl flex-col gap-3 overflow-y-auto p-4">
         {loading && (
-          <p className="text-center text-sm text-slate-500">加载中…</p>
+          <p className="text-center text-sm text-text-tertiary">加载中…</p>
         )}
 
         {!loading && notifications.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-2 py-12 text-slate-500">
+          <div className="flex flex-col items-center justify-center gap-2 py-12 text-text-tertiary">
             <Bell size={32} />
             <p>暂无通知</p>
           </div>
@@ -101,7 +101,7 @@ export default function Notifications() {
         {notifications.map((n) => (
           <Card
             key={n.id}
-            className={`border-slate-700/50 ${n.read ? 'opacity-70' : ''}`}
+            className={`border-celestial-border ${n.read ? 'opacity-70' : ''}`}
           >
             <CardContent className="flex items-start justify-between gap-3 p-4">
               <div className="flex-1">
@@ -110,11 +110,11 @@ export default function Notifications() {
                     <span className="h-2 w-2 rounded-full bg-lumi-accent"></span>
                   )}
                   <span className="font-medium text-white">{n.title}</span>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-text-tertiary">
                     {new Date(n.createdAt).toLocaleString('zh-CN')}
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-slate-300">{n.body}</p>
+                <p className="mt-1 text-sm text-text-secondary">{n.body}</p>
               </div>
               <div className="flex items-center gap-1">
                 {!n.read && (

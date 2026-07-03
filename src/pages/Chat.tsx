@@ -4,6 +4,7 @@ import { Settings, Plus, LayoutDashboard } from 'lucide-react';
 import { MessageList } from '../components/chat/MessageList.js';
 import { ChatInput } from '../components/chat/ChatInput.js';
 import { AppLayout } from '../components/layout/AppLayout.js';
+import { Button } from '../components/ui/Button.js';
 import { ConversationCanvas } from '../components/canvas/ConversationCanvas.js';
 import { apiRequest, streamChat } from '../lib/api.js';
 import { createUserInputNode, eventToCanvasNodes } from '../lib/canvasEvents.js';
@@ -231,39 +232,26 @@ export default function Chat() {
         onDeleteSession: handleDeleteSession,
       }}
       actions={
-        <>
-          <button
-            onClick={handleNewSession}
-            className="flex h-8 items-center gap-1 rounded-lg bg-lumi-accent/20 px-3 text-sm font-medium text-lumi-accent hover:bg-lumi-accent/30"
-          >
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={handleNewSession}>
             <Plus size={16} />
             新会话
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={showCanvas ? 'primary' : 'ghost'}
+            size="icon"
             onClick={() => setShowCanvas(!showCanvas)}
-            className={cn(
-              'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
-              showCanvas
-                ? 'bg-lumi-accent/20 text-lumi-accent'
-                : 'text-slate-300 hover:bg-white/5'
-            )}
             aria-label="Toggle canvas"
           >
             <LayoutDashboard size={18} />
-          </button>
-          <button
-            onClick={() => navigate('/profile')}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-300 hover:bg-white/5"
-          >
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
             <Settings size={18} />
-          </button>
-          <button
-            onClick={logout}
-            className="hidden h-8 items-center gap-1 rounded-lg border border-slate-600 px-3 text-sm text-slate-300 hover:bg-white/5 sm:flex"
-          >
+          </Button>
+          <Button variant="ghost" size="sm" onClick={logout} className="hidden sm:flex">
             退出
-          </button>
-        </>
+          </Button>
+        </div>
       }
     >
       <div className={cn('flex h-full', showCanvas && 'flex-col lg:flex-row')}>

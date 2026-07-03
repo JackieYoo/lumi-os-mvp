@@ -25,6 +25,7 @@ const upload = multer({
       'audio/wav',
       'audio/mpeg',
       'audio/mp4',
+      'audio/x-m4a',
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);

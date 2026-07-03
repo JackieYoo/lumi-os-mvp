@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { blobToMonoWav } from '../lib/audioEncoder.js';
 
 export type VoiceState = 'idle' | 'recording' | 'processing' | 'speaking' | 'error';
 
@@ -290,6 +291,19 @@ export function useVoice(options: UseVoiceOptions = {}) {
           chunks: audioChunksRef.current.length,
         });
 
+        let wavBlob: Blob;
+        try {
+          wavBlob = await blobToMonoWav(audioBlob);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Audio conversion failed';
+          setError(`音频转换失败: ${message}`);
+          setState('error');
+          return;
+        }
+
+        // eslint-disable-next-line no-console
+        console.log('[Voice] wav converted', { size: wavBlob.size });
+
         try {
           const response = await fetch('/api/voice/stt', {
             method: 'POST',
@@ -299,7 +313,7 @@ export function useVoice(options: UseVoiceOptions = {}) {
             },
             body: (() => {
               const formData = new FormData();
-              formData.append('audio', audioBlob, 'recording.webm');
+              formData.append('audio', wavBlob, 'recording.wav');
               return formData;
             })(),
           });

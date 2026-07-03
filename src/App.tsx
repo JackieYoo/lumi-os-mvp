@@ -9,6 +9,10 @@ import Voice from './pages/Voice.js';
 import KnowledgeBase from './pages/KnowledgeBase.js';
 import Canvas from './pages/Canvas.js';
 import MemoryTree from './pages/MemoryTree.js';
+import MemoryAvatar from './pages/MemoryAvatar.js';
+import Notifications from './pages/Notifications.js';
+import Personality from './pages/Personality.js';
+import Tasks from './pages/Tasks.js';
 
 function ProtectedRoute() {
   const { user, isLoading } = useAuth();
@@ -48,9 +52,13 @@ function AppRoutes() {
         <Route path="/knowledge" element={<KnowledgeBase />} />
         <Route path="/canvas" element={<Canvas />} />
         <Route path="/memories/tree" element={<MemoryTree />} />
+        <Route path="/memories/avatar" element={<MemoryAvatar />} />
         <Route path="/memories" element={<MemoryManagement />} />
         <Route path="/tools" element={<ToolMarketplace />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/personality" element={<Personality />} />
+        <Route path="/tasks" element={<Tasks />} />
         <Route path="/" element={<Navigate to="/chat" replace />} />
       </Route>
     </Routes>

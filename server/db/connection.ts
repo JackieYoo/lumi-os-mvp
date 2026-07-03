@@ -104,6 +104,147 @@ CREATE TABLE IF NOT EXISTS knowledge_files (
 );
 
 CREATE INDEX IF NOT EXISTS idx_knowledge_files_user ON knowledge_files(user_id);
+
+CREATE TABLE IF NOT EXISTS mcp_servers (
+  name TEXT PRIMARY KEY,
+  command TEXT,
+  args TEXT,
+  env TEXT,
+  url TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  read INTEGER NOT NULL DEFAULT 0,
+  data_json TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, read);
+
+CREATE TABLE IF NOT EXISTS personality_profiles (
+  user_id TEXT PRIMARY KEY,
+  vector_json TEXT NOT NULL,
+  emotional_state_json TEXT NOT NULL,
+  cognitive_json TEXT NOT NULL,
+  traits_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS relationships (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  relation_type TEXT,
+  summary TEXT,
+  memory_ids TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_relationships_user ON relationships(user_id);
+
+CREATE TABLE IF NOT EXISTS memory_embeddings (
+  memory_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  embedding_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (memory_id) REFERENCES memories(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_memory_embeddings_user ON memory_embeddings(user_id);
+
+CREATE TABLE IF NOT EXISTS knowledge_chunks (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  file_id TEXT NOT NULL,
+  chunk_index INTEGER NOT NULL,
+  total_chunks INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  embedding_json TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (file_id) REFERENCES knowledge_files(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_user ON knowledge_chunks(user_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_file ON knowledge_chunks(file_id);
+
+CREATE TABLE IF NOT EXISTS knowledge_entities (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  file_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  entity_type TEXT,
+  mentions INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (file_id) REFERENCES knowledge_files(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_entities_user ON knowledge_entities(user_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_entities_file ON knowledge_entities(file_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_knowledge_entities_unique ON knowledge_entities(user_id, file_id, name);
+
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'paused', 'completed', 'failed', 'cancelled')),
+  priority INTEGER NOT NULL DEFAULT 5,
+  trigger_type TEXT NOT NULL CHECK(trigger_type IN ('manual', 'scheduled', 'chat', 'event')),
+  schedule_cron TEXT,
+  context_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(user_id, status);
+
+CREATE TABLE IF NOT EXISTS task_steps (
+  id TEXT PRIMARY KEY,
+  task_id TEXT NOT NULL,
+  step_index INTEGER NOT NULL,
+  description TEXT NOT NULL,
+  tool_name TEXT,
+  tool_args_json TEXT,
+  status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed', 'skipped')),
+  result_json TEXT,
+  error TEXT,
+  started_at TEXT,
+  completed_at TEXT,
+  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_steps_task ON task_steps(task_id);
+
+CREATE TABLE IF NOT EXISTS task_executions (
+  id TEXT PRIMARY KEY,
+  task_id TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('running', 'completed', 'failed', 'cancelled')),
+  result_summary TEXT,
+  error_message TEXT,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_executions_task ON task_executions(task_id);
 `;
 
 async function runMigrations(connection: Database<sqlite3.Database, sqlite3.Statement>): Promise<void> {

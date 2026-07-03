@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   MessageSquare,
   Brain,
@@ -9,13 +9,16 @@ import {
   LayoutDashboard,
   Network,
   User,
+  Sparkles,
   Menu,
   X,
   Plus,
   MessageSquare as MessageIcon,
   Trash2,
+  ListTodo,
 } from 'lucide-react';
 import { cn } from '../../lib/utils.js';
+import { NotificationBell } from '../notifications/NotificationBell.js';
 
 interface ChatSession {
   id: string;
@@ -36,10 +39,13 @@ const navItems = [
   { path: '/chat', label: '对话', icon: MessageSquare },
   { path: '/voice', label: '语音', icon: Mic },
   { path: '/canvas', label: '画布', icon: LayoutDashboard },
+  { path: '/tasks', label: '任务', icon: ListTodo },
   { path: '/memories', label: '记忆', icon: Brain },
   { path: '/memories/tree', label: '记忆树', icon: Network },
+  { path: '/memories/avatar', label: '记忆化身', icon: Sparkles },
   { path: '/knowledge', label: '知识库', icon: BookOpen },
   { path: '/tools', label: '工具', icon: Wrench },
+  { path: '/personality', label: '人格', icon: Sparkles },
   { path: '/profile', label: '个人中心', icon: User },
 ];
 
@@ -175,6 +181,8 @@ export function AppHeader({
   title: string;
   actions?: React.ReactNode;
 }) {
+  const navigate = useNavigate();
+
   return (
     <header className="flex h-14 items-center justify-between border-b border-slate-700/50 bg-celestial-panel/80 px-4">
       <div className="flex items-center gap-3">
@@ -186,7 +194,10 @@ export function AppHeader({
         </button>
         <span className="font-semibold text-white">{title}</span>
       </div>
-      <div className="flex items-center gap-2">{actions}</div>
+      <div className="flex items-center gap-2">
+        {actions}
+        <NotificationBell onClick={() => navigate('/notifications')} />
+      </div>
     </header>
   );
 }

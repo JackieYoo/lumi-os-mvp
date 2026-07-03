@@ -64,6 +64,11 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string = MI
 
     const text = extractTextFromResponse(response);
 
+    logger.info('STT extracted text', {
+      textLength: text?.length ?? 0,
+      isEmpty: text?.length === 0,
+    });
+
     if (text === undefined) {
       logger.error('Unexpected STT response structure', {
         response: typeof response === 'string' ? response : JSON.stringify(response),

@@ -44,6 +44,8 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string = MI
     throw new AppError(400, 'Audio buffer is empty', 'EMPTY_AUDIO');
   }
 
+  logger.info('STT audio received', { size: audioBuffer.length, mimeType });
+
   const openai = new OpenAI({ apiKey: config.OPENAI_API_KEY });
 
   const file = await toFile(audioBuffer, 'recording.webm', { type: mimeType });
@@ -74,6 +76,11 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string = MI
         response: typeof response === 'string' ? response : JSON.stringify(response),
       });
       throw new AppError(502, 'STT returned unexpected response', 'STT_UNEXPECTED_RESPONSE');
+    }
+
+    if (text.length > 10000) {
+      logger.error('STT returned suspiciously long text', { length: text.length });
+      throw new AppError(502, 'STT returned garbled audio, please try again', 'STT_GARBLED');
     }
 
     return { text };

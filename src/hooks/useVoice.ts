@@ -276,13 +276,19 @@ export function useVoice(options: UseVoiceOptions = {}) {
         }
 
         const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
-        const arrayBuffer = await audioBlob.arrayBuffer();
 
-        if (arrayBuffer.byteLength === 0) {
+        if (audioBlob.size === 0) {
           setError('录音文件为空');
           setState('error');
           return;
         }
+
+        // eslint-disable-next-line no-console
+        console.log('[Voice] audio recorded', {
+          mimeType: mediaRecorder.mimeType,
+          size: audioBlob.size,
+          chunks: audioChunksRef.current.length,
+        });
 
         try {
           const response = await fetch('/api/voice/stt', {
@@ -293,7 +299,7 @@ export function useVoice(options: UseVoiceOptions = {}) {
             },
             body: (() => {
               const formData = new FormData();
-              formData.append('audio', new Blob([arrayBuffer], { type: mediaRecorder.mimeType }), 'recording.webm');
+              formData.append('audio', audioBlob, 'recording.webm');
               return formData;
             })(),
           });

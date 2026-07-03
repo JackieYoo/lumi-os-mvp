@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Check, Trash2, ArrowLeft } from 'lucide-react';
+import { Bell, Check, Trash2, ArrowLeft, Sparkles } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout.js';
 import { Button } from '../components/ui/Button.js';
 import { Card, CardContent } from '../components/ui/Card.js';
@@ -40,9 +40,7 @@ export default function Notifications() {
   const markRead = async (id: string) => {
     try {
       await apiRequest('POST', `/notifications/${id}/read`);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-      );
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     } catch {
       // handled
     }
@@ -86,35 +84,47 @@ export default function Notifications() {
         </div>
       }
     >
-      <div className="mx-auto flex h-full max-w-2xl flex-col gap-3 overflow-y-auto p-4">
-        {loading && (
-          <p className="text-center text-sm text-text-tertiary">加载中…</p>
-        )}
+      <div className="mx-auto flex h-full max-w-3xl flex-col gap-5 overflow-y-auto p-4 lg:p-6">
+        <Card className="overflow-hidden">
+          <div className="absolute right-0 top-0 h-32 w-32 bg-gradient-to-bl from-lumi-accent/10 to-transparent" />
+          <CardContent className="relative flex items-center justify-between gap-4 p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-lumi-accent/10 text-lumi-accent ring-1 ring-lumi-accent/20">
+                <Bell size={24} />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-text-primary">系统通知</h2>
+                <p className="mt-1 text-sm text-text-tertiary">任务、知识库与系统状态会在这里提醒你</p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-celestial-border bg-celestial-deep/40 px-4 py-2 text-sm text-text-secondary">
+              未读 <span className="font-semibold text-text-primary">{unreadCount}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {loading && <p className="py-12 text-center text-sm text-text-tertiary">加载中…</p>}
 
         {!loading && notifications.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-2 py-12 text-text-tertiary">
-            <Bell size={32} />
-            <p>暂无通知</p>
-          </div>
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-text-tertiary">
+              <Sparkles size={32} className="text-lumi-accent/60" />
+              <p className="text-base font-medium text-text-primary">暂无通知</p>
+              <p className="text-sm">一切都很安静。</p>
+            </CardContent>
+          </Card>
         )}
 
         {notifications.map((n) => (
-          <Card
-            key={n.id}
-            className={`border-celestial-border ${n.read ? 'opacity-70' : ''}`}
-          >
-            <CardContent className="flex items-start justify-between gap-3 p-4">
+          <Card key={n.id} className={n.read ? 'opacity-70' : 'ring-1 ring-lumi-accent/10'}>
+            <CardContent className="flex items-start justify-between gap-3 p-5">
               <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  {!n.read && (
-                    <span className="h-2 w-2 rounded-full bg-lumi-accent"></span>
-                  )}
-                  <span className="font-medium text-white">{n.title}</span>
-                  <span className="text-xs text-text-tertiary">
-                    {new Date(n.createdAt).toLocaleString('zh-CN')}
-                  </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {!n.read && <span className="h-2 w-2 rounded-full bg-lumi-accent animate-pulse" />}
+                  <span className="font-medium text-text-primary">{n.title}</span>
+                  <span className="text-xs text-text-tertiary">{new Date(n.createdAt).toLocaleString('zh-CN')}</span>
                 </div>
-                <p className="mt-1 text-sm text-text-secondary">{n.body}</p>
+                <p className="mt-2 text-sm leading-relaxed text-text-secondary">{n.body}</p>
               </div>
               <div className="flex items-center gap-1">
                 {!n.read && (
@@ -131,7 +141,7 @@ export default function Notifications() {
                   variant="ghost"
                   size="icon"
                   onClick={() => remove(n.id)}
-                  className="h-8 w-8 text-red-400 hover:text-red-300"
+                  className="h-8 w-8 text-status-error hover:text-status-error"
                 >
                   <Trash2 size={14} />
                 </Button>

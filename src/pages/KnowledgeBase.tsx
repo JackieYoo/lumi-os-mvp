@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BookOpen, Search, Network } from 'lucide-react';
+import { BookOpen, Search, Network, Sparkles } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout.js';
 import { FileUploader } from '../components/knowledge/FileUploader.js';
 import { FileList, type KnowledgeFileItem } from '../components/knowledge/FileList.js';
 import { KnowledgeGraph } from '../components/knowledge/KnowledgeGraph.js';
 import { Input } from '../components/ui/Input.js';
+import { Button } from '../components/ui/Button.js';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card.js';
 import { apiRequest, getToken } from '../lib/api.js';
 import { toast } from 'sonner';
 
@@ -137,77 +139,98 @@ export default function KnowledgeBase() {
 
   return (
     <AppLayout title="知识库" sidebarProps={{}} actions={null}>
-      <div className="flex h-full flex-col gap-6 p-6">
-        <div className="flex flex-col gap-4 lg:flex-row">
-          <div className="flex-1">
-            <FileUploader onUpload={handleUpload} isUploading={isUploading} />
-          </div>
-          <div className="flex flex-col gap-4 lg:w-96">
-            <div className="rounded-xl border border-slate-700/50 bg-celestial-panel/40 p-4">
-              <div className="mb-3 flex items-center gap-2 text-lumi-accent">
-                <BookOpen size={18} />
-                <h2 className="font-medium text-slate-200">知识库说明</h2>
-              </div>
-              <ul className="space-y-2 text-xs text-slate-400">
-                <li>上传 TXT、Markdown、PDF 或代码文件</li>
-                <li>点击“吸收到知识库”进行分块索引</li>
-                <li>对话时会自动检索相关知识并引用来源</li>
-              </ul>
+      <div className="flex h-full flex-col gap-5 overflow-y-auto p-4 lg:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row">
+          <div className="flex-1 space-y-5">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles size={18} className="text-lumi-accent" /> 上传文件
+                </CardTitle>
+                <CardDescription>支持 TXT、Markdown、PDF、代码文件等，单个最大 20MB</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FileUploader onUpload={handleUpload} isUploading={isUploading} />
+              </CardContent>
+            </Card>
+
+            <div className="flex items-center gap-3">
+              <Search size={18} className="text-text-tertiary" />
+              <Input
+                placeholder="语义搜索知识库..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSemanticSearch()}
+                className="max-w-md"
+              />
+              <Button variant="secondary" onClick={handleSemanticSearch}>
+                搜索
+              </Button>
+              <span className="text-sm text-text-tertiary">共 {filteredFiles.length} 个文件</span>
             </div>
 
-            <div className="rounded-xl border border-slate-700/50 bg-celestial-panel/40 p-4">
-              <div className="mb-3 flex items-center gap-2 text-lumi-accent">
-                <Network size={18} />
-                <h2 className="font-medium text-slate-200">知识图谱</h2>
+            {semanticResults.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-text-secondary">语义搜索结果</h3>
+                {semanticResults.map((result, i) => (
+                  <div
+                    key={i}
+                    className="rounded-xl border border-celestial-border bg-celestial-deep/50 p-4 text-sm"
+                  >
+                    <p className="text-text-secondary">{result.content}</p>
+                    <p className="mt-2 text-xs text-text-tertiary">
+                      来源: {result.source} · 相关度: {result.score.toFixed(3)}
+                    </p>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-center">
+            )}
+
+            <FileList
+              files={filteredFiles}
+              onIngest={handleIngest}
+              onDelete={handleDelete}
+              isProcessing={processingId}
+            />
+          </div>
+
+          <div className="flex flex-col gap-5 lg:w-96">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen size={18} className="text-lumi-accent" /> 知识库说明
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-3 text-sm text-text-secondary">
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-lumi-accent" />
+                    上传 TXT、Markdown、PDF 或代码文件
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-lumi-accent" />
+                    点击“吸收到知识库”进行分块索引
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-lumi-accent" />
+                    对话时会自动检索相关知识并引用来源
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Network size={18} className="text-lumi-accent" /> 知识图谱
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex justify-center">
                 <KnowledgeGraph entities={entities} />
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
-          <Search size={18} className="text-slate-500" />
-          <Input
-            placeholder="语义搜索知识库..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSemanticSearch()}
-            className="max-w-md"
-          />
-          <button
-            onClick={handleSemanticSearch}
-            className="rounded-lg bg-lumi-accent/20 px-3 py-2 text-sm font-medium text-lumi-accent hover:bg-lumi-accent/30"
-          >
-            搜索
-          </button>
-          <span className="text-sm text-slate-500">共 {filteredFiles.length} 个文件</span>
-        </div>
-
-        {semanticResults.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium text-slate-300">语义搜索结果</h3>
-            {semanticResults.map((result, i) => (
-              <div
-                key={i}
-                className="rounded-lg border border-slate-700/50 bg-celestial-deep p-3 text-sm"
-              >
-                <p className="text-slate-300">{result.content}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  来源: {result.source} · 相关度: {result.score.toFixed(3)}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <FileList
-          files={filteredFiles}
-          onIngest={handleIngest}
-          onDelete={handleDelete}
-          isProcessing={processingId}
-        />
       </div>
     </AppLayout>
   );

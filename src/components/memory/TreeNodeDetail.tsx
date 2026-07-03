@@ -22,7 +22,7 @@ export function TreeNodeDetail({
   return (
     <div
       className={cn(
-        'absolute bottom-4 left-4 right-4 z-20 max-w-md rounded-xl border border-slate-700/50 bg-celestial-panel/95 p-4 shadow-2xl backdrop-blur lg:bottom-auto lg:left-auto lg:right-6 lg:top-20',
+        'absolute bottom-4 left-4 right-4 z-20 max-w-md rounded-2xl border border-celestial-border bg-celestial-panel/95 p-5 shadow-2xl backdrop-blur-xl lg:bottom-auto lg:left-auto lg:right-6 lg:top-20',
         className
       )}
     >
@@ -31,22 +31,14 @@ export function TreeNodeDetail({
           <Badge variant="default">重要性 {importance}</Badge>
           {source && <Badge variant="outline">{source}</Badge>}
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg p-1 text-slate-500 hover:bg-white/5 hover:text-white"
-        >
+        <button type="button" onClick={onClose} className="rounded-lg p-1 text-text-tertiary hover:bg-white/5 hover:text-text-primary">
           <X size={18} />
         </button>
       </div>
 
-      <p className="max-h-48 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
-        {content}
-      </p>
+      <p className="max-h-48 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-text-secondary">{content}</p>
 
-      <p className="mt-3 text-xs text-slate-500">
-        {new Date(created_at).toLocaleString('zh-CN')}
-      </p>
+      <p className="mt-3 text-xs text-text-tertiary">{new Date(created_at).toLocaleString('zh-CN')}</p>
     </div>
   );
 }

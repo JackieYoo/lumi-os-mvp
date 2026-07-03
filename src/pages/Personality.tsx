@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Sparkles, RefreshCw } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout.js';
 import { Button } from '../components/ui/Button.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card.js';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card.js';
 import { PersonalityRadar } from '../components/personality/PersonalityRadar.js';
 import { apiRequest } from '../lib/api.js';
 import { toast } from 'sonner';
@@ -31,6 +31,17 @@ interface PersonalityProfile {
   traits: string[];
   updatedAt: string;
 }
+
+const traitLabels: Record<keyof PersonalityProfile['vector'], string> = {
+  warmth: '温暖',
+  curiosity: '好奇',
+  creativity: '创造',
+  rationality: '理性',
+  empathy: '共情',
+  assertiveness: '主动',
+  playfulness: '活泼',
+  depth: '深度',
+};
 
 export default function Personality() {
   const [profile, setProfile] = useState<PersonalityProfile | null>(null);
@@ -69,93 +80,74 @@ export default function Personality() {
 
   return (
     <AppLayout title="人格引擎" sidebarProps={{ sessions: [] }}>
-      <div className="mx-auto flex h-full max-w-4xl flex-col gap-4 overflow-y-auto p-4">
+      <div className="mx-auto flex h-full max-w-4xl flex-col gap-5 overflow-y-auto p-4 lg:p-6">
         {loading && (
-          <p className="text-center text-sm text-slate-500">加载中…</p>
+          <p className="py-12 text-center text-sm text-text-tertiary">加载中…</p>
         )}
 
         {!loading && profile && (
           <>
-            <Card className="border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Sparkles size={18} className="text-lumi-accent" />
-                  人格雷达
+            <Card className="overflow-hidden">
+              <div className="absolute right-0 top-0 h-40 w-40 bg-gradient-to-bl from-lumi-accent/10 to-transparent" />
+              <CardHeader className="relative">
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles size={18} className="text-lumi-accent" /> 人格画像
                 </CardTitle>
+                <CardDescription>基于对话自动进化的八维人格模型</CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-col items-center gap-4">
-                <PersonalityRadar vector={profile.vector} size={280} />
-                <div className="grid w-full grid-cols-2 gap-2 text-sm">
+              <CardContent className="relative flex flex-col items-center gap-6">
+                <PersonalityRadar vector={profile.vector} size={300} />
+                <div className="grid w-full grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                   {Object.entries(profile.vector).map(([key, value]) => (
                     <div
                       key={key}
-                      className="flex items-center justify-between rounded-lg border border-slate-700/50 bg-celestial-deep px-3 py-2"
+                      className="flex flex-col rounded-xl border border-celestial-border bg-celestial-deep/40 px-3 py-2.5"
                     >
-                      <span className="text-slate-300">{key}</span>
-                      <span className="font-mono font-medium text-lumi-accent">{value}</span>
+                      <span className="text-xs text-text-tertiary">{traitLabels[key as keyof PersonalityProfile['vector']]}</span>
+                      <span className="font-mono text-lg font-semibold text-lumi-accent">{value}</span>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card className="border-slate-700/50">
+            <div className="grid gap-5 md:grid-cols-2">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-white">情绪状态</CardTitle>
+                  <CardTitle>情绪状态</CardTitle>
+                  <CardDescription>当前情绪维度快照</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">心情</span>
-                    <span className="font-medium text-white">{profile.emotionalState.mood}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">效价</span>
-                    <span className="font-medium text-white">
-                      {profile.emotionalState.valence.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">唤醒</span>
-                    <span className="font-medium text-white">
-                      {profile.emotionalState.arousal.toFixed(2)}
-                    </span>
-                  </div>
+                <CardContent className="space-y-3">
+                  <StatRow label="心情" value={profile.emotionalState.mood} />
+                  <StatRow label="效价" value={profile.emotionalState.valence.toFixed(2)} />
+                  <StatRow label="唤醒" value={profile.emotionalState.arousal.toFixed(2)} />
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-700/50">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-white">认知风格</CardTitle>
+                  <CardTitle>认知风格</CardTitle>
+                  <CardDescription>思维与感知偏好</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">思考 / 感受</span>
-                    <span className="font-medium text-white">
-                      {profile.cognitive.thinkingVsFeeling.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">直觉 / 实感</span>
-                    <span className="font-medium text-white">
-                      {profile.cognitive.intuitionVsSensing.toFixed(2)}
-                    </span>
-                  </div>
+                <CardContent className="space-y-3">
+                  <StatRow label="思考 / 感受" value={profile.cognitive.thinkingVsFeeling.toFixed(2)} />
+                  <StatRow label="直觉 / 实感" value={profile.cognitive.intuitionVsSensing.toFixed(2)} />
                 </CardContent>
               </Card>
             </div>
 
             {profile.traits.length > 0 && (
-              <Card className="border-slate-700/50">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-white">特质标签</CardTitle>
+                  <CardTitle>特质标签</CardTitle>
+                  <CardDescription>从对话中提炼出的稳定特质</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
                     {profile.traits.map((trait) => (
                       <span
                         key={trait}
-                        className="rounded-full bg-lumi-accent/10 px-3 py-1 text-sm text-lumi-accent"
+                        className="rounded-full bg-lumi-accent/10 px-3 py-1 text-sm font-medium text-lumi-accent-soft ring-1 ring-lumi-accent/20"
                       >
                         {trait}
                       </span>
@@ -165,20 +157,14 @@ export default function Personality() {
               </Card>
             )}
 
-            <Card className="border-slate-700/50">
-              <CardContent className="flex items-center justify-between p-4">
-                <div className="text-sm text-slate-400">
-                  基于聊天记录重新孵化初始人格
+            <Card>
+              <CardContent className="flex flex-col items-center justify-between gap-4 p-5 sm:flex-row">
+                <div>
+                  <p className="text-sm font-medium text-text-primary">重新孵化人格</p>
+                  <p className="text-xs text-text-tertiary">基于聊天记录重新初始化初始人格画像</p>
                 </div>
-                <Button
-                  onClick={handleIncubate}
-                  disabled={incubating}
-                  variant="secondary"
-                >
-                  <RefreshCw
-                    size={16}
-                    className={incubating ? 'animate-spin' : ''}
-                  />
+                <Button onClick={handleIncubate} disabled={incubating} variant="secondary">
+                  <RefreshCw size={16} className={incubating ? 'animate-spin' : ''} />
                   {incubating ? '孵化中' : '重新孵化'}
                 </Button>
               </CardContent>
@@ -187,5 +173,14 @@ export default function Personality() {
         )}
       </div>
     </AppLayout>
+  );
+}
+
+function StatRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-celestial-border bg-celestial-deep/40 px-3 py-2.5">
+      <span className="text-sm text-text-secondary">{label}</span>
+      <span className="font-medium text-text-primary">{value}</span>
+    </div>
   );
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Sparkles, Users, Wand2, RefreshCw } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout.js';
 import { Button } from '../components/ui/Button.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card.js';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card.js';
 import { RelationshipGraph } from '../components/memory/RelationshipGraph.js';
 import { apiRequest } from '../lib/api.js';
 import { toast } from 'sonner';
@@ -73,82 +73,69 @@ export default function MemoryAvatar() {
 
   return (
     <AppLayout title="记忆化身" sidebarProps={{ sessions: [] }}>
-      <div className="mx-auto flex h-full max-w-4xl flex-col gap-4 overflow-y-auto p-4">
+      <div className="mx-auto flex h-full max-w-4xl flex-col gap-5 overflow-y-auto p-4 lg:p-6">
         {loading && (
-          <p className="text-center text-sm text-slate-500">加载中…</p>
+          <p className="py-12 text-center text-sm text-text-tertiary">加载中…</p>
         )}
 
         {!loading && (
           <>
-            <Card className="border-slate-700/50">
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Users size={18} className="text-lumi-accent" />
-                  关系网络
+                <CardTitle className="flex items-center gap-2">
+                  <Users size={18} className="text-lumi-accent" /> 关系网络
                 </CardTitle>
+                <CardDescription>聊天中提及的人物、组织与实体会在这里形成关系图谱</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center gap-4">
                 <RelationshipGraph relationships={relationships} />
                 {relationships.length === 0 && (
-                  <p className="text-sm text-slate-500">
-                    聊天中提及的人会自动出现在这里。
-                  </p>
+                  <p className="text-sm text-text-tertiary">聊天中提及的人会自动出现在这里。</p>
                 )}
               </CardContent>
             </Card>
 
-            <Card className="border-slate-700/50">
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Sparkles size={18} className="text-lumi-accent" />
-                  记忆化身
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles size={18} className="text-lumi-accent" /> 记忆化身
                 </CardTitle>
+                <CardDescription>基于你的长期记忆蒸馏出一个个性化 persona</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {avatar ? (
                   <>
-                    <div className="rounded-lg bg-celestial-deep p-4">
-                      <p className="text-sm text-slate-300">{avatar.summary}</p>
+                    <div className="rounded-2xl border border-celestial-border bg-celestial-deep/40 p-5">
+                      <p className="text-sm leading-relaxed text-text-secondary">{avatar.summary}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {avatar.values.map((value) => (
                         <span
                           key={value}
-                          className="rounded-full bg-lumi-accent/10 px-3 py-1 text-sm text-lumi-accent"
+                          className="rounded-full bg-lumi-accent/10 px-3 py-1 text-sm font-medium text-lumi-accent-soft ring-1 ring-lumi-accent/20"
                         >
                           {value}
                         </span>
                       ))}
                     </div>
-                    <div className="text-sm text-slate-400">
-                      <span className="font-medium text-slate-300">语音风格：</span>{' '}
+                    <div className="rounded-xl border border-celestial-border bg-celestial-deep/40 p-4 text-sm text-text-secondary">
+                      <span className="font-medium text-text-primary">语音风格：</span>{' '}
                       {avatar.voiceNotes}
                     </div>
                   </>
                 ) : (
-                  <p className="text-sm text-slate-500">
+                  <div className="rounded-xl border border-dashed border-celestial-border-strong bg-celestial-deep/20 p-6 text-center text-sm text-text-tertiary">
                     基于最近的记忆生成一个 distilled persona。
-                  </p>
+                  </div>
                 )}
 
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleGenerateAvatar}
-                    disabled={generating}
-                    variant="secondary"
-                  >
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={handleGenerateAvatar} disabled={generating} variant="secondary">
                     <Wand2 size={16} />
                     {generating ? '生成中' : '生成化身'}
                   </Button>
-                  <Button
-                    onClick={handleConsolidate}
-                    disabled={consolidating}
-                    variant="secondary"
-                  >
-                    <RefreshCw
-                      size={16}
-                      className={consolidating ? 'animate-spin' : ''}
-                    />
+                  <Button onClick={handleConsolidate} disabled={consolidating} variant="glass">
+                    <RefreshCw size={16} className={consolidating ? 'animate-spin' : ''} />
                     {consolidating ? '整理中' : '整理记忆'}
                   </Button>
                 </div>

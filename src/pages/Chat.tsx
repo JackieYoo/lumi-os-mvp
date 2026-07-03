@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Settings, Plus, LayoutDashboard } from 'lucide-react';
+import { Settings, Plus, LayoutDashboard, Sparkles, Brain, Wrench } from 'lucide-react';
 import { MessageList } from '../components/chat/MessageList.js';
 import { ChatInput } from '../components/chat/ChatInput.js';
 import { AppLayout } from '../components/layout/AppLayout.js';
 import { Button } from '../components/ui/Button.js';
+import { Card, CardContent } from '../components/ui/Card.js';
 import { ConversationCanvas } from '../components/canvas/ConversationCanvas.js';
 import { apiRequest, streamChat } from '../lib/api.js';
 import { createUserInputNode, eventToCanvasNodes } from '../lib/canvasEvents.js';
@@ -200,9 +201,9 @@ export default function Chat() {
           }
 
           if (showCanvas) {
-            const canvasNodes = eventToCanvasNodes(messageText, e as StreamEvent);
-            if (canvasNodes.length > 0) {
-              setCanvasNodes((prev) => [...prev, ...canvasNodes]);
+            const newCanvasNodes = eventToCanvasNodes(messageText, e as StreamEvent);
+            if (newCanvasNodes.length > 0) {
+              setCanvasNodes((prev) => [...prev, ...newCanvasNodes]);
             }
           }
         },
@@ -216,10 +217,12 @@ export default function Chat() {
         }
       );
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(error instanceof Error ? error.message : '发送失败');
       setIsStreaming(false);
     }
   };
+
+  const settings = getSettings();
 
   return (
     <AppLayout
@@ -237,12 +240,7 @@ export default function Chat() {
             <Plus size={16} />
             新会话
           </Button>
-          <Button
-            variant={showCanvas ? 'primary' : 'ghost'}
-            size="icon"
-            onClick={() => setShowCanvas(!showCanvas)}
-            aria-label="Toggle canvas"
-          >
+          <Button variant={showCanvas ? 'primary' : 'ghost'} size="icon" onClick={() => setShowCanvas(!showCanvas)} aria-label="Toggle canvas">
             <LayoutDashboard size={18} />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
@@ -254,18 +252,59 @@ export default function Chat() {
         </div>
       }
     >
-      <div className={cn('flex h-full', showCanvas && 'flex-col lg:flex-row')}>
-        <div className={cn('flex h-full flex-col', showCanvas ? 'flex-1' : 'w-full')}>
-          <MessageList messages={messages} isStreaming={isStreaming} />
-          <ChatInput onSend={handleSend} disabled={isStreaming} />
+      <div className={cn('flex h-full flex-col gap-4 overflow-hidden p-4 lg:p-6', showCanvas && 'lg:flex-row')}>
+        <div className={cn('flex min-h-0 flex-1 flex-col gap-4', showCanvas && 'lg:max-w-[calc(100%-24rem)]')}>
+          <Card>
+            <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="mb-2 flex items-center gap-2 text-lumi-accent">
+                  <Sparkles size={18} />
+                  <span className="text-sm font-medium">Lumi Chat</span>
+                </div>
+                <h2 className="text-xl font-semibold text-text-primary">保持对话，让 Lumi 逐渐理解你</h2>
+                <p className="mt-1 text-sm text-text-tertiary">当前模型：{settings.provider}{settings.model ? ` / ${settings.model}` : ''}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <StatusPill icon={<Brain size={14} />} label="记忆" active={settings.enableMemory} />
+                <StatusPill icon={<Wrench size={14} />} label="工具" active={settings.enableTools} />
+                <StatusPill icon={<LayoutDashboard size={14} />} label="Canvas" active={showCanvas} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-celestial-border bg-celestial-panel/40">
+            <div className="flex h-full flex-col">
+              <MessageList messages={messages} isStreaming={isStreaming} />
+              <ChatInput onSend={handleSend} disabled={isStreaming} />
+            </div>
+          </div>
         </div>
+
         {showCanvas && (
-          <div className="h-80 border-t border-slate-700/50 lg:h-auto lg:w-96 lg:border-l lg:border-t-0">
-            <ConversationCanvas nodes={canvasNodes} isStreaming={isStreaming} />
+          <div className="flex h-80 shrink-0 flex-col overflow-hidden rounded-2xl border border-celestial-border bg-celestial-panel/40 lg:h-auto lg:w-96">
+            <div className="border-b border-celestial-border px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-text-primary">
+                <LayoutDashboard size={16} className="text-lumi-accent" />
+                实时思考流
+              </div>
+              <p className="mt-1 text-xs text-text-tertiary">查看记忆检索、工具调用与回复生成过程</p>
+            </div>
+            <div className="min-h-0 flex-1">
+              <ConversationCanvas nodes={canvasNodes} isStreaming={isStreaming} />
+            </div>
           </div>
         )}
       </div>
     </AppLayout>
+  );
+}
+
+function StatusPill({ icon, label, active }: { icon: React.ReactNode; label: string; active: boolean }) {
+  return (
+    <div className={cn('flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium', active ? 'bg-lumi-accent/10 text-lumi-accent-soft ring-1 ring-lumi-accent/20' : 'bg-celestial-surface text-text-tertiary')}>
+      {icon}
+      {label}
+    </div>
   );
 }
 

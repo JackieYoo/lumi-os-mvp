@@ -7,12 +7,13 @@ import {
   Server,
   ChevronDown,
   ChevronUp,
+  Sparkles,
 } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout.js';
 import { apiRequest } from '../lib/api.js';
 import { Button } from '../components/ui/Button.js';
 import { Input } from '../components/ui/Input.js';
-import { Card, CardContent } from '../components/ui/Card.js';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card.js';
 import { Badge } from '../components/ui/Badge.js';
 import { toast } from 'sonner';
 
@@ -169,9 +170,12 @@ export default function ToolMarketplace() {
 
   return (
     <AppLayout title="工具 / MCP 市场" sidebarProps={{ sessions: [] }}>
-      <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
+      <div className="mx-auto flex h-full max-w-5xl flex-col gap-5 overflow-y-auto p-4 lg:p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">内置工具</h2>
+          <div>
+            <h2 className="text-lg font-semibold text-text-primary">内置工具</h2>
+            <p className="mt-1 text-sm text-text-tertiary">开启或关闭 Lumi 在对话中可调用的能力</p>
+          </div>
           <Button variant="secondary" size="sm" onClick={() => navigate('/chat')}>
             去聊天
           </Button>
@@ -182,34 +186,32 @@ export default function ToolMarketplace() {
             const enabled = enabledTools.has(tool.name);
             const expanded = expandedTools.has(tool.name);
             return (
-              <Card key={tool.name} className="border-slate-700/50">
+              <Card key={tool.name}>
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-lumi-accent/20 text-lumi-accent">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-lumi-accent/20 text-lumi-accent">
                         <Wrench size={18} />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-white">{tool.name}</span>
-                          {BUILT_IN_TOOLS.includes(tool.name) && (
-                            <Badge variant="outline">内置</Badge>
-                          )}
+                          <span className="font-medium text-text-primary">{tool.name}</span>
+                          {BUILT_IN_TOOLS.includes(tool.name) && <Badge variant="outline">内置</Badge>}
                         </div>
-                        <p className="text-sm text-slate-400">{tool.description}</p>
+                        <p className="text-sm text-text-tertiary">{tool.description}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => toggleExpanded(tool.name)}
-                        className="text-slate-400 hover:text-white"
+                        className="text-text-tertiary hover:text-text-primary"
                       >
                         {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </button>
                       <button
                         onClick={() => toggleTool(tool.name)}
                         className={`flex h-8 w-14 items-center rounded-full px-1 transition ${
-                          enabled ? 'bg-lumi-accent' : 'bg-slate-600'
+                          enabled ? 'bg-lumi-accent' : 'bg-celestial-surface'
                         }`}
                       >
                         <div
@@ -222,8 +224,8 @@ export default function ToolMarketplace() {
                   </div>
 
                   {expanded && (
-                    <div className="mt-3 rounded-lg bg-celestial-deep p-3">
-                      <pre className="overflow-x-auto text-xs text-slate-300">
+                    <div className="mt-3 rounded-xl border border-celestial-border bg-celestial-deep/40 p-3">
+                      <pre className="overflow-x-auto text-xs text-text-secondary">
                         {JSON.stringify(tool.parameters, null, 2)}
                       </pre>
                     </div>
@@ -235,15 +237,24 @@ export default function ToolMarketplace() {
         </div>
 
         <div className="mt-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">MCP 服务器</h2>
+          <div>
+            <h2 className="text-lg font-semibold text-text-primary">MCP 服务器</h2>
+            <p className="mt-1 text-sm text-text-tertiary">连接外部能力，让 Lumi 调用更多工具</p>
+          </div>
           <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>
             <Plus size={16} /> 添加
           </Button>
         </div>
 
         {showAddForm && (
-          <Card className="border-slate-700/50">
-            <CardContent className="space-y-3 p-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles size={18} className="text-lumi-accent" /> 添加 MCP 服务器
+              </CardTitle>
+              <CardDescription>支持 stdio 命令或 SSE URL</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
               <Input
                 placeholder="服务器名称"
                 value={newServer.name}
@@ -278,31 +289,29 @@ export default function ToolMarketplace() {
 
         <div className="grid gap-3">
           {mcpServers.map((server) => (
-            <Card key={server.name} className="border-slate-700/50">
+            <Card key={server.name}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-slate-300">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-celestial-surface text-text-secondary">
                       <Server size={18} />
                     </div>
                     <div>
-                      <span className="font-medium text-white">{server.name}</span>
-                      <p className="text-xs text-slate-400">
-                        {server.toolCount !== undefined
-                          ? `${server.toolCount} 个工具`
-                          : server.url || 'stdio'}
+                      <span className="font-medium text-text-primary">{server.name}</span>
+                      <p className="text-xs text-text-tertiary">
+                        {server.toolCount !== undefined ? `${server.toolCount} 个工具` : server.url || 'stdio'}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={server.connected ? 'default' : 'outline'}>
+                    <Badge variant={server.connected ? 'success' : 'outline'}>
                       {server.connected ? '已连接' : '未连接'}
                     </Badge>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteServer(server.name)}
-                      className="h-8 w-8 text-red-400 hover:text-red-300"
+                      className="h-8 w-8 text-status-error hover:text-status-error"
                     >
                       <Trash2 size={14} />
                     </Button>
@@ -314,24 +323,20 @@ export default function ToolMarketplace() {
                   ?.tools.map((tool) => (
                     <div
                       key={tool.name}
-                      className="mt-2 rounded-lg border border-slate-700/50 bg-celestial-deep p-3"
+                      className="mt-3 rounded-xl border border-celestial-border bg-celestial-deep/40 p-3"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-sm text-lumi-accent">{tool.name}</span>
+                        <span className="font-mono text-sm text-lumi-accent-soft">{tool.name}</span>
                         <button
                           onClick={() => toggleExpanded(tool.name)}
-                          className="text-slate-400 hover:text-white"
+                          className="text-text-tertiary hover:text-text-primary"
                         >
-                          {expandedTools.has(tool.name) ? (
-                            <ChevronUp size={16} />
-                          ) : (
-                            <ChevronDown size={16} />
-                          )}
+                          {expandedTools.has(tool.name) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         </button>
                       </div>
-                      <p className="text-xs text-slate-400">{tool.description}</p>
+                      <p className="text-xs text-text-tertiary">{tool.description}</p>
                       {expandedTools.has(tool.name) && (
-                        <pre className="mt-2 overflow-x-auto text-xs text-slate-300">
+                        <pre className="mt-2 overflow-x-auto text-xs text-text-secondary">
                           {JSON.stringify(tool.parameters, null, 2)}
                         </pre>
                       )}
@@ -341,7 +346,9 @@ export default function ToolMarketplace() {
             </Card>
           ))}
           {mcpServers.length === 0 && !showAddForm && (
-            <p className="text-sm text-slate-500">暂无 MCP 服务器配置</p>
+            <div className="rounded-2xl border border-dashed border-celestial-border-strong bg-celestial-deep/20 py-10 text-center text-sm text-text-tertiary">
+              暂无 MCP 服务器配置
+            </div>
           )}
         </div>
       </div>

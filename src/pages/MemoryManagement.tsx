@@ -97,47 +97,55 @@ export default function MemoryManagement() {
 
   return (
     <AppLayout title="记忆管理" sidebarProps={{ sessions: [] }}>
-      <div className="flex h-full flex-col p-4">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索记忆..."
-              className="pl-9"
-            />
-          </div>
-          <Button variant="secondary" onClick={() => navigate('/chat')}>
-            去聊天
-          </Button>
-        </div>
+      <div className="mx-auto flex h-full max-w-4xl flex-col gap-5 overflow-y-auto p-4 lg:p-6">
+        <Card>
+          <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="搜索记忆..."
+                className="pl-9"
+              />
+            </div>
+            <Button variant="secondary" onClick={() => navigate('/chat')}>
+              去聊天
+            </Button>
+          </CardContent>
+        </Card>
 
         {loading && memories.length === 0 && (
-          <div className="text-center text-slate-400">加载中…</div>
+          <div className="py-12 text-center text-text-tertiary">加载中…</div>
         )}
 
         {!loading && memories.length === 0 && (
-          <div className="flex flex-1 flex-col items-center justify-center text-slate-400">
-            <Brain size={48} className="mb-4 opacity-50" />
-            <p>还没有记忆</p>
-            <p className="text-sm">在聊天中开启「启用记忆」，AI 会自动记录重要事实。</p>
-          </div>
+          <Card>
+            <CardContent className="flex flex-1 flex-col items-center justify-center py-16 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-lumi-accent/10 text-lumi-accent ring-1 ring-lumi-accent/20">
+                <Brain size={32} />
+              </div>
+              <p className="text-lg font-medium text-text-primary">还没有记忆</p>
+              <p className="mt-1 text-sm text-text-tertiary">
+                在聊天中开启「启用记忆」，AI 会自动记录重要事实。
+              </p>
+            </CardContent>
+          </Card>
         )}
 
-        <div className="space-y-3 overflow-y-auto pb-4">
+        <div className="space-y-3 pb-4">
           {memories.map((memory) => (
-            <Card key={memory.id} className="border-slate-700/50">
+            <Card key={memory.id}>
               <CardContent className="p-4">
                 {editingId === memory.id ? (
                   <div className="space-y-3">
                     <textarea
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
-                      className="min-h-[80px] w-full rounded-lg border border-slate-600 bg-celestial-deep p-3 text-sm text-white outline-none focus:border-lumi-accent"
+                      className="min-h-[90px] w-full rounded-xl border border-celestial-border bg-celestial-deep/60 p-3 text-sm text-text-primary outline-none transition focus:border-lumi-accent/50 focus:ring-1 focus:ring-lumi-accent/30"
                     />
                     <div className="flex items-center gap-3">
-                      <label className="text-sm text-slate-300">重要度</label>
+                      <label className="text-sm text-text-secondary">重要度</label>
                       <input
                         type="range"
                         min={1}
@@ -146,7 +154,7 @@ export default function MemoryManagement() {
                         onChange={(e) => setEditImportance(Number(e.target.value))}
                         className="w-32 accent-lumi-accent"
                       />
-                      <span className="text-sm text-lumi-accent">{editImportance}</span>
+                      <span className="text-sm font-medium text-lumi-accent">{editImportance}</span>
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="sm" onClick={cancelEdit}>
@@ -159,15 +167,15 @@ export default function MemoryManagement() {
                   </div>
                 ) : (
                   <>
-                    <div className="mb-3 whitespace-pre-wrap text-sm text-slate-100">
+                    <div className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-text-primary">
                       {memory.content}
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="default" className="flex items-center gap-1">
                           <Star size={12} /> {memory.importance}
                         </Badge>
-                        <span className="flex items-center gap-1 text-xs text-slate-500">
+                        <span className="flex items-center gap-1 text-xs text-text-tertiary">
                           <Calendar size={12} />
                           {new Date(memory.created_at).toLocaleDateString('zh-CN')}
                         </span>
@@ -185,7 +193,7 @@ export default function MemoryManagement() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(memory.id)}
-                          className="h-8 w-8 text-red-400 hover:text-red-300"
+                          className="h-8 w-8 text-status-error hover:text-status-error"
                         >
                           <Trash2 size={14} />
                         </Button>

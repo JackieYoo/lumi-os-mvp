@@ -65,11 +65,11 @@ export function FileUploader({ onUpload, isUploading, className }: FileUploaderP
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 transition-colors',
-          'bg-celestial-panel/40 hover:bg-celestial-panel/60',
+          'flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-8 transition-all duration-200',
+          'bg-celestial-deep/30 hover:bg-celestial-deep/50',
           isDragging
             ? 'border-lumi-accent bg-lumi-accent/10'
-            : 'border-slate-700 hover:border-lumi-accent/50',
+            : 'border-celestial-border hover:border-lumi-accent/50',
           isUploading && 'pointer-events-none opacity-60'
         )}
       >
@@ -80,14 +80,15 @@ export function FileUploader({ onUpload, isUploading, className }: FileUploaderP
           onChange={handleFileSelect}
           className="hidden"
         />
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-lumi-accent/20 text-lumi-accent">
-          <Upload size={24} />
+        <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-lumi-accent/30 to-lumi-accent/10 text-lumi-accent ring-1 ring-lumi-accent/30">
+          <Upload size={26} className="relative z-10" />
+          <span className="absolute inset-0 rounded-2xl bg-lumi-accent/10 blur-lg" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-medium text-slate-200">
+          <p className="text-sm font-medium text-text-primary">
             {isDragging ? '松开以上传' : '点击或拖拽文件到此处'}
           </p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-text-tertiary">
             支持 TXT、Markdown、PDF、代码文件等，单个最大 20MB
           </p>
         </div>
@@ -98,12 +99,12 @@ export function FileUploader({ onUpload, isUploading, className }: FileUploaderP
           {selectedFiles.map((file, index) => (
             <div
               key={`${file.name}-${index}`}
-              className="flex items-center justify-between rounded-lg bg-celestial-panel/60 px-3 py-2"
+              className="flex items-center justify-between rounded-xl border border-celestial-border bg-celestial-panel/60 px-3 py-2"
             >
               <div className="flex items-center gap-2 overflow-hidden">
                 <FileText size={16} className="shrink-0 text-lumi-accent" />
-                <span className="truncate text-sm text-slate-200">{file.name}</span>
-                <span className="text-xs text-slate-500">
+                <span className="truncate text-sm text-text-primary">{file.name}</span>
+                <span className="text-xs text-text-tertiary">
                   {(file.size / 1024).toFixed(1)} KB
                 </span>
               </div>
@@ -113,7 +114,7 @@ export function FileUploader({ onUpload, isUploading, className }: FileUploaderP
                   variant="ghost"
                   size="icon"
                   onClick={clearSelection}
-                  className="h-7 w-7 shrink-0 text-slate-500 hover:text-red-400"
+                  className="h-7 w-7 shrink-0 text-text-tertiary hover:text-status-error"
                 >
                   <X size={14} />
                 </Button>

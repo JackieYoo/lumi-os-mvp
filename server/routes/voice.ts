@@ -18,7 +18,14 @@ const upload = multer({
     files: 1,
   },
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg', 'audio/wav', 'audio/mpeg'];
+    const allowedTypes = [
+      'audio/webm',
+      'audio/webm;codecs=opus',
+      'audio/ogg',
+      'audio/wav',
+      'audio/mpeg',
+      'audio/mp4',
+    ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -48,7 +55,7 @@ voiceRouter.post(
         throw new AppError(400, 'No audio file provided', 'MISSING_AUDIO_FILE');
       }
 
-      const result = await transcribeAudio(req.file.buffer);
+      const result = await transcribeAudio(req.file.buffer, req.file.mimetype);
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);

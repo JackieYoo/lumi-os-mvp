@@ -239,10 +239,24 @@ export function useVoice(options: UseVoiceOptions = {}) {
       setError(null);
       audioChunksRef.current = [];
 
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : MediaRecorder.isTypeSupported('audio/mp4')
+            ? 'audio/mp4'
+            : '';
+
+      if (!mimeType) {
+        setError('当前浏览器不支持音频录制');
+        setState('error');
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -261,7 +275,7 @@ export function useVoice(options: UseVoiceOptions = {}) {
           return;
         }
 
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
         const arrayBuffer = await audioBlob.arrayBuffer();
 
         if (arrayBuffer.byteLength === 0) {
@@ -279,7 +293,7 @@ export function useVoice(options: UseVoiceOptions = {}) {
             },
             body: (() => {
               const formData = new FormData();
-              formData.append('audio', new Blob([arrayBuffer], { type: 'audio/webm' }), 'recording.webm');
+              formData.append('audio', new Blob([arrayBuffer], { type: mediaRecorder.mimeType }), 'recording.webm');
               return formData;
             })(),
           });

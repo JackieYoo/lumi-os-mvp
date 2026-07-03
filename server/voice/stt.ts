@@ -13,7 +13,29 @@ export function isSTTAvailable(): boolean {
   return Boolean(config.OPENAI_API_KEY);
 }
 
-export async function transcribeAudio(audioBuffer: Buffer): Promise<STTResult> {
+function extractTextFromResponse(response: unknown): string | undefined {
+  if (typeof response === 'string') {
+    return response.trim();
+  }
+
+  if (response && typeof response === 'object') {
+    const obj = response as Record<string, unknown>;
+    if (typeof obj.text === 'string') {
+      return obj.text.trim();
+    }
+    // Sometimes the SDK wraps the response in a `data` property
+    if (obj.data && typeof obj.data === 'object') {
+      const data = obj.data as Record<string, unknown>;
+      if (typeof data.text === 'string') {
+        return data.text.trim();
+      }
+    }
+  }
+
+  return undefined;
+}
+
+export async function transcribeAudio(audioBuffer: Buffer, mimeType: string = MIME_TYPE_WHISPER): Promise<STTResult> {
   if (!config.OPENAI_API_KEY) {
     throw new AppError(503, 'STT service is not configured', 'STT_NOT_CONFIGURED');
   }
@@ -24,26 +46,38 @@ export async function transcribeAudio(audioBuffer: Buffer): Promise<STTResult> {
 
   const openai = new OpenAI({ apiKey: config.OPENAI_API_KEY });
 
-  const file = await toFile(audioBuffer, 'recording.webm', { type: MIME_TYPE_WHISPER });
+  const file = await toFile(audioBuffer, 'recording.webm', { type: mimeType });
 
   try {
     const response = await openai.audio.transcriptions.create({
       file,
       model: 'whisper-1',
       language: 'zh',
+      response_format: 'json',
     });
 
-    if (!response || typeof response.text !== 'string') {
-      logger.error('Unexpected STT response structure', { response: JSON.stringify(response) });
+    logger.info('STT raw response', {
+      responseType: typeof response,
+      responseConstructor: response ? (response as object).constructor.name : 'null',
+      responseKeys: response && typeof response === 'object' ? Object.keys(response) : [],
+    });
+
+    const text = extractTextFromResponse(response);
+
+    if (text === undefined) {
+      logger.error('Unexpected STT response structure', {
+        response: typeof response === 'string' ? response : JSON.stringify(response),
+      });
       throw new AppError(502, 'STT returned unexpected response', 'STT_UNEXPECTED_RESPONSE');
     }
 
-    return { text: response.text.trim() };
+    return { text };
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
     }
     const message = error instanceof Error ? error.message : 'STT failed';
+    logger.error('OpenAI STT request failed', { error: message });
     throw new AppError(502, `Speech-to-text failed: ${message}`, 'STT_FAILED');
   }
 }

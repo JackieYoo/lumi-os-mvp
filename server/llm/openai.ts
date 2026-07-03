@@ -8,7 +8,17 @@ import {
 } from './types.js';
 
 export function createOpenAIProvider(args: {
-  name: 'openai' | 'deepseek' | 'ollama' | 'relay';
+  name:
+    | 'openai'
+    | 'deepseek'
+    | 'ollama'
+    | 'relay'
+    | 'qwen'
+    | 'doubao'
+    | 'kimi'
+    | 'glm'
+    | 'xiaomi'
+    | 'lmstudio';
   apiKey?: string;
   baseURL: string;
   defaultModel: string;
@@ -21,10 +31,12 @@ export function createOpenAIProvider(args: {
     dangerouslyAllowBrowser: false,
   });
 
+  const isLocalProvider = name === 'ollama' || name === 'lmstudio';
+
   return {
     name,
     defaultModel,
-    isAvailable: () => (name === 'ollama' ? true : !!apiKey),
+    isAvailable: () => (isLocalProvider ? true : !!apiKey),
 
     async stream(options, onChunk) {
       const model = options.model || defaultModel;
@@ -178,4 +190,45 @@ export const relayProvider = createOpenAIProvider({
   apiKey: config.CUSTOM_RELAY_API_KEY,
   baseURL: config.CUSTOM_RELAY_BASE_URL || 'https://api.openai.com/v1',
   defaultModel: config.CUSTOM_RELAY_MODEL || 'gpt-4o-mini',
+});
+
+export const qwenProvider = createOpenAIProvider({
+  name: 'qwen',
+  apiKey: config.DASHSCOPE_API_KEY,
+  baseURL: config.DASHSCOPE_BASE_URL,
+  defaultModel: 'qwen-max',
+});
+
+export const doubaoProvider = createOpenAIProvider({
+  name: 'doubao',
+  apiKey: config.ARK_API_KEY,
+  baseURL: config.ARK_BASE_URL,
+  defaultModel: 'doubao-1.5-pro-32k',
+});
+
+export const kimiProvider = createOpenAIProvider({
+  name: 'kimi',
+  apiKey: config.KIMI_API_KEY,
+  baseURL: config.KIMI_BASE_URL,
+  defaultModel: 'moonshot-v1-8k',
+});
+
+export const glmProvider = createOpenAIProvider({
+  name: 'glm',
+  apiKey: config.GLM_API_KEY,
+  baseURL: config.GLM_BASE_URL,
+  defaultModel: 'glm-4-flash',
+});
+
+export const xiaomiProvider = createOpenAIProvider({
+  name: 'xiaomi',
+  apiKey: config.XIAOMI_API_KEY,
+  baseURL: config.XIAOMI_BASE_URL,
+  defaultModel: 'milm',
+});
+
+export const lmStudioProvider = createOpenAIProvider({
+  name: 'lmstudio',
+  baseURL: config.LM_STUDIO_BASE_URL,
+  defaultModel: 'local-model',
 });

@@ -1,17 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BookOpen, Search } from 'lucide-react';
+import { BookOpen, Search, Network } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout.js';
 import { FileUploader } from '../components/knowledge/FileUploader.js';
 import { FileList, type KnowledgeFileItem } from '../components/knowledge/FileList.js';
+import { KnowledgeGraph } from '../components/knowledge/KnowledgeGraph.js';
 import { Input } from '../components/ui/Input.js';
 import { apiRequest, getToken } from '../lib/api.js';
 import { toast } from 'sonner';
 
+interface KnowledgeEntity {
+  id: string;
+  name: string;
+  entity_type: string | null;
+  mentions: number;
+}
+
 export default function KnowledgeBase() {
   const [files, setFiles] = useState<KnowledgeFileItem[]>([]);
+  const [entities, setEntities] = useState<KnowledgeEntity[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [semanticResults, setSemanticResults] = useState<Array<{ content: string; source?: string; score: number }>>([]);
 
   const fetchFiles = useCallback(async () => {
     try {
@@ -22,9 +32,19 @@ export default function KnowledgeBase() {
     }
   }, []);
 
+  const fetchEntities = useCallback(async () => {
+    try {
+      const data = await apiRequest<KnowledgeEntity[]>('GET', '/knowledge/entities');
+      setEntities(data);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     fetchFiles();
-  }, [fetchFiles]);
+    fetchEntities();
+  }, [fetchFiles, fetchEntities]);
 
   const handleUpload = useCallback(
     async (uploadedFiles: FileList) => {
@@ -73,6 +93,7 @@ export default function KnowledgeBase() {
         );
         toast.success(`已吸收 ${result.chunks} 个片段`);
         await fetchFiles();
+        await fetchEntities();
       } catch (error) {
         const message = error instanceof Error ? error.message : '吸收失败';
         toast.error(message);
@@ -80,7 +101,7 @@ export default function KnowledgeBase() {
         setProcessingId(null);
       }
     },
-    [fetchFiles]
+    [fetchFiles, fetchEntities]
   );
 
   const handleDelete = useCallback(
@@ -96,6 +117,19 @@ export default function KnowledgeBase() {
     },
     [fetchFiles]
   );
+
+  const handleSemanticSearch = useCallback(async () => {
+    if (!searchQuery.trim()) return;
+    try {
+      const results = await apiRequest<Array<{ content: string; source?: string; score: number }>>(
+        'GET',
+        `/knowledge/search?q=${encodeURIComponent(searchQuery)}`
+      );
+      setSemanticResults(results);
+    } catch {
+      // handled
+    }
+  }, [searchQuery]);
 
   const filteredFiles = files.filter((f) =>
     f.display_name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -120,19 +154,53 @@ export default function KnowledgeBase() {
                 <li>对话时会自动检索相关知识并引用来源</li>
               </ul>
             </div>
+
+            <div className="rounded-xl border border-slate-700/50 bg-celestial-panel/40 p-4">
+              <div className="mb-3 flex items-center gap-2 text-lumi-accent">
+                <Network size={18} />
+                <h2 className="font-medium text-slate-200">知识图谱</h2>
+              </div>
+              <div className="flex justify-center">
+                <KnowledgeGraph entities={entities} />
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <Search size={18} className="text-slate-500" />
           <Input
-            placeholder="搜索文件..."
+            placeholder="语义搜索知识库..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSemanticSearch()}
             className="max-w-md"
           />
+          <button
+            onClick={handleSemanticSearch}
+            className="rounded-lg bg-lumi-accent/20 px-3 py-2 text-sm font-medium text-lumi-accent hover:bg-lumi-accent/30"
+          >
+            搜索
+          </button>
           <span className="text-sm text-slate-500">共 {filteredFiles.length} 个文件</span>
         </div>
+
+        {semanticResults.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-slate-300">语义搜索结果</h3>
+            {semanticResults.map((result, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-slate-700/50 bg-celestial-deep p-3 text-sm"
+              >
+                <p className="text-slate-300">{result.content}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  来源: {result.source} · 相关度: {result.score.toFixed(3)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
         <FileList
           files={filteredFiles}

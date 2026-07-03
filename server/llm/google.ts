@@ -15,13 +15,15 @@ function toGeminiTool(tool: { name: string; description: string; parameters: Rec
   };
 }
 
+const googleApiKey = () => config.GEMINI_API_KEY || config.GOOGLE_API_KEY;
+
 export const googleProvider: LLMProvider = {
   name: 'google',
   defaultModel: 'gemini-2.0-flash',
-  isAvailable: () => !!config.GOOGLE_API_KEY,
+  isAvailable: () => !!googleApiKey(),
 
   async stream(options, onChunk) {
-    const genAI = new GoogleGenerativeAI(config.GOOGLE_API_KEY || '');
+    const genAI = new GoogleGenerativeAI(googleApiKey() || '');
     const model = genAI.getGenerativeModel({ model: options.model || 'gemini-2.0-flash' });
 
     const system = options.messages.find((m) => m.role === 'system')?.content;
@@ -54,7 +56,7 @@ export const googleProvider: LLMProvider = {
   },
 
   async complete(options): Promise<LLMCompleteResponse> {
-    const genAI = new GoogleGenerativeAI(config.GOOGLE_API_KEY || '');
+    const genAI = new GoogleGenerativeAI(googleApiKey() || '');
     const model = genAI.getGenerativeModel({ model: options.model || 'gemini-2.0-flash' });
 
     const system = options.messages.find((m) => m.role === 'system')?.content;

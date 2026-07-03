@@ -50,7 +50,19 @@ export interface LLMCompleteResponse {
   usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
 }
 
-export type LLMProviderName = 'openai' | 'deepseek' | 'anthropic' | 'google' | 'ollama' | 'relay';
+export type LLMProviderName =
+  | 'openai'
+  | 'deepseek'
+  | 'anthropic'
+  | 'google'
+  | 'qwen'
+  | 'doubao'
+  | 'kimi'
+  | 'glm'
+  | 'xiaomi'
+  | 'ollama'
+  | 'lmstudio'
+  | 'relay';
 
 export interface LLMProvider {
   name: LLMProviderName;

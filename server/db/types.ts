@@ -48,3 +48,13 @@ export interface KnowledgeFile {
   created_at: string;
   updated_at: string;
 }
+
+export interface MCPServerRecord {
+  name: string;
+  command: string | null;
+  args: string | null;
+  env: string | null;
+  url: string | null;
+  created_at: string;
+  updated_at: string;
+}

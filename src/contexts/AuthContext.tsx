@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { apiRequest, getToken, removeToken, setToken } from '../lib/api.js';
+import { disconnectSocket } from '../lib/socket.js';
 
 interface User {
   id: string;
@@ -59,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     removeToken();
+    disconnectSocket();
     setUser(null);
   };
 

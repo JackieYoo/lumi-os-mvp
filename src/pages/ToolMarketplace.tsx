@@ -28,6 +28,13 @@ interface MCPServer {
   args?: string[];
   env?: Record<string, string>;
   url?: string;
+  connected?: boolean;
+  toolCount?: number;
+}
+
+interface MCPToolGroup {
+  server: string;
+  tools: Tool[];
 }
 
 interface MCPServerForm {
@@ -43,6 +50,7 @@ export default function ToolMarketplace() {
   const navigate = useNavigate();
   const [tools, setTools] = useState<Tool[]>([]);
   const [mcpServers, setMcpServers] = useState<MCPServer[]>([]);
+  const [mcpTools, setMcpTools] = useState<MCPToolGroup[]>([]);
   const [enabledTools, setEnabledTools] = useState<Set<string>>(() => {
     const raw = localStorage.getItem('lumi_enabled_tools');
     if (raw) {
@@ -83,8 +91,21 @@ export default function ToolMarketplace() {
 
   const loadMCPServers = async () => {
     try {
-      const data = await apiRequest<string[]>('GET', '/mcp/servers');
-      setMcpServers(data.map((name) => ({ name })));
+      const [names, toolGroups] = await Promise.all([
+        apiRequest<string[]>('GET', '/mcp/servers'),
+        apiRequest<MCPToolGroup[]>('GET', '/mcp/tools'),
+      ]);
+      setMcpTools(toolGroups);
+      setMcpServers(
+        names.map((name) => {
+          const group = toolGroups.find((g) => g.server === name);
+          return {
+            name,
+            connected: true,
+            toolCount: group?.tools?.length,
+          };
+        }),
+      );
     } catch {
       // handled
     }
@@ -258,29 +279,64 @@ export default function ToolMarketplace() {
         <div className="grid gap-3">
           {mcpServers.map((server) => (
             <Card key={server.name} className="border-slate-700/50">
-              <CardContent className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-slate-300">
-                    <Server size={18} />
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-slate-300">
+                      <Server size={18} />
+                    </div>
+                    <div>
+                      <span className="font-medium text-white">{server.name}</span>
+                      <p className="text-xs text-slate-400">
+                        {server.toolCount !== undefined
+                          ? `${server.toolCount} 个工具`
+                          : server.url || 'stdio'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-medium text-white">{server.name}</span>
-                    <p className="text-xs text-slate-400">
-                      {server.command || server.url || '未配置'}
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={server.connected ? 'default' : 'outline'}>
+                      {server.connected ? '已连接' : '未连接'}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteServer(server.name)}
+                      className="h-8 w-8 text-red-400 hover:text-red-300"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">占位</Badge>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDeleteServer(server.name)}
-                    className="h-8 w-8 text-red-400 hover:text-red-300"
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
+
+                {mcpTools
+                  .find((g) => g.server === server.name)
+                  ?.tools.map((tool) => (
+                    <div
+                      key={tool.name}
+                      className="mt-2 rounded-lg border border-slate-700/50 bg-celestial-deep p-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-sm text-lumi-accent">{tool.name}</span>
+                        <button
+                          onClick={() => toggleExpanded(tool.name)}
+                          className="text-slate-400 hover:text-white"
+                        >
+                          {expandedTools.has(tool.name) ? (
+                            <ChevronUp size={16} />
+                          ) : (
+                            <ChevronDown size={16} />
+                          )}
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-400">{tool.description}</p>
+                      {expandedTools.has(tool.name) && (
+                        <pre className="mt-2 overflow-x-auto text-xs text-slate-300">
+                          {JSON.stringify(tool.parameters, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  ))}
               </CardContent>
             </Card>
           ))}

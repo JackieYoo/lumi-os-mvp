@@ -28,7 +28,13 @@ const providerModels: Record<string, string[]> = {
   deepseek: ['deepseek-chat', 'deepseek-reasoner'],
   anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'],
   google: ['gemini-2.0-flash', 'gemini-1.5-pro'],
+  qwen: ['qwen-max', 'qwen-plus', 'qwen-turbo'],
+  doubao: ['doubao-1.5-pro-32k', 'doubao-1.5-lite-32k'],
+  kimi: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+  glm: ['glm-4-flash', 'glm-4', 'glm-4v'],
+  xiaomi: ['milm'],
   ollama: ['llama3.1', 'qwen2.5', 'mistral'],
+  lmstudio: ['local-model'],
   relay: [],
 };
 

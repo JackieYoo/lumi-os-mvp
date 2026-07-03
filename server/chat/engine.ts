@@ -2,11 +2,16 @@ import crypto from 'crypto';
 import { LLMMessage } from '../llm/types.js';
 import { streamLLM, completeLLM } from '../llm/router.js';
 import { listTools, executeTool } from '../tools/registry.js';
+import { listMCPTools, executeMCPTool } from '../mcp/tools.js';
 import { buildMemoryContext } from '../memory/context.js';
 import { extractMemories } from '../memory/extractor.js';
 import { storeMemory } from '../memory/store.js';
+import { extractRelationships } from '../memory/relationships.js';
 import { createMessage, listMessagesBySession } from '../db/messages.js';
 import { updateSessionTitle } from '../db/sessions.js';
+import { getOrCreatePersonalityProfile, buildPersonalityContext, evolveFromChat } from '../personality/engine.js';
+import type { PersonalityProfile } from '../personality/types.js';
+import { emitChatEvent } from '../socket/chat.js';
 import { ChatStreamEvent } from './types.js';
 
 const SYSTEM_PROMPT = `You are Lumi, a personal AI companion.
@@ -29,6 +34,11 @@ export async function handleChatStream(options: ChatOptions): Promise<void> {
   const { sessionId, userId, message, provider, model, enableMemory, enableTools, onEvent } =
     options;
 
+  const notify = (event: ChatStreamEvent) => {
+    onEvent(event);
+    emitChatEvent(sessionId, event);
+  };
+
   // Save user message
   const userMessageId = crypto.randomUUID();
   await createMessage({
@@ -44,13 +54,17 @@ export async function handleChatStream(options: ChatOptions): Promise<void> {
   // Build context
   const history = await listMessagesBySession(sessionId);
   const memoryContext = enableMemory ? await buildMemoryContext(userId, message) : null;
+  const personalityProfile = await getOrCreatePersonalityProfile(userId);
 
   if (memoryContext && memoryContext.memories.length > 0) {
-    onEvent({ type: 'memory_retrieval', memories: memoryContext.memories });
+    notify({ type: 'memory_retrieval', memories: memoryContext.memories });
   }
 
   const messages: LLMMessage[] = [
-    { role: 'system', content: buildSystemPrompt(memoryContext?.summary) },
+    {
+      role: 'system',
+      content: buildSystemPrompt(memoryContext?.summary, personalityProfile),
+    },
     ...history.map((m) => ({
       role: m.role,
       content: m.content || '',
@@ -58,9 +72,17 @@ export async function handleChatStream(options: ChatOptions): Promise<void> {
     })),
   ];
 
-  const tools = enableTools ? listTools() : [];
+  const builtInTools = enableTools ? listTools() : [];
+  const mcpTools = enableTools
+    ? listMCPTools().map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema,
+      }))
+    : [];
+  const tools = [...builtInTools, ...mcpTools];
 
-  onEvent({ type: 'llm_reasoning' });
+  notify({ type: 'llm_reasoning' });
 
   // First call: allow tool usage
   const response = await completeLLM({
@@ -91,9 +113,18 @@ export async function handleChatStream(options: ChatOptions): Promise<void> {
 
     // Execute each tool and append results
     for (const toolCall of response.toolCalls) {
-      onEvent({ type: 'tool_call', toolCall });
-      const result = await executeTool(toolCall.name, toolCall.arguments);
-      onEvent({ type: 'tool_result', toolCall, toolResult: result });
+      notify({ type: 'tool_call', toolCall });
+      let result: unknown;
+      try {
+        result = await executeTool(toolCall.name, toolCall.arguments);
+      } catch (err) {
+        if ((err as Error).message?.includes('Tool not found')) {
+          result = await executeMCPTool(toolCall.name, toolCall.arguments);
+        } else {
+          throw err;
+        }
+      }
+      notify({ type: 'tool_result', toolCall, toolResult: result });
 
       messages.push({
         role: 'tool',
@@ -113,7 +144,7 @@ export async function handleChatStream(options: ChatOptions): Promise<void> {
     }
 
     // Second call with tool results
-    onEvent({ type: 'llm_reasoning' });
+    notify({ type: 'llm_reasoning' });
     await streamLLM(
       {
         provider,
@@ -123,16 +154,16 @@ export async function handleChatStream(options: ChatOptions): Promise<void> {
       },
       (chunk) => {
         if (chunk.content) {
-          onEvent({ type: 'delta', content: chunk.content });
+          notify({ type: 'delta', content: chunk.content });
         }
       }
     );
   } else {
     // Stream direct response
-    onEvent({ type: 'delta', content: response.content });
+    notify({ type: 'delta', content: response.content });
   }
 
-  onEvent({ type: 'done' });
+  notify({ type: 'done' });
 
   // Extract and store memories asynchronously
   if (enableMemory) {
@@ -145,6 +176,19 @@ export async function handleChatStream(options: ChatOptions): Promise<void> {
     }
   }
 
+  // Evolve personality asynchronously
+  void evolveFromChat(userId, provider, model, sessionId).catch(() => {
+    // errors logged inside engine
+  });
+
+  // Extract relationships asynchronously
+  void extractRelationships(
+    userId,
+    history.map((m) => `${m.role}: ${m.content || ''}`).join('\n'),
+  ).catch(() => {
+    // errors logged inside relationships
+  });
+
   // Update session title if first user message
   if (history.length <= 1) {
     const title = message.slice(0, 30) + (message.length > 30 ? '...' : '');
@@ -152,9 +196,16 @@ export async function handleChatStream(options: ChatOptions): Promise<void> {
   }
 }
 
-function buildSystemPrompt(memorySummary?: string): string {
+function buildSystemPrompt(
+  memorySummary?: string,
+  personalityProfile?: PersonalityProfile,
+): string {
+  const parts = [SYSTEM_PROMPT];
   if (memorySummary) {
-    return `${SYSTEM_PROMPT}\n\n${memorySummary}`;
+    parts.push(memorySummary);
   }
-  return SYSTEM_PROMPT;
+  if (personalityProfile) {
+    parts.push(buildPersonalityContext(personalityProfile));
+  }
+  return parts.join('\n\n');
 }

@@ -14,6 +14,15 @@ import {
   deleteKnowledgeFile,
 } from '../db/knowledge.js';
 import { createMemory } from '../db/memories.js';
+import { createNotification } from '../db/notifications.js';
+import { emitNotification } from '../socket/notifications.js';
+import {
+  deleteKnowledgeChunksByFile,
+  deleteKnowledgeEntitiesByFile,
+  listKnowledgeEntitiesByUser,
+} from '../db/knowledge-enhancement.js';
+import { embedKnowledgeChunks, retrieveKnowledgeChunks } from '../knowledge/embeddings.js';
+import { extractEntities } from '../knowledge/graph.js';
 import { extractText, canExtract } from '../knowledge/extractor.js';
 import { chunkText } from '../knowledge/chunker.js';
 
@@ -141,6 +150,16 @@ knowledgeRouter.post('/files/:id/ingest', async (req: AuthRequest, res, next) =>
       const chunks = chunkText(extracted.text);
       const now = new Date().toISOString();
 
+      // Clear previous enhanced index for this file
+      await deleteKnowledgeChunksByFile(file.id);
+      await deleteKnowledgeEntitiesByFile(file.id);
+
+      // Save chunks with embeddings for semantic RAG
+      await embedKnowledgeChunks(req.user!.id, file.id, chunks);
+
+      // Extract entities for knowledge graph (non-blocking)
+      void extractEntities(req.user!.id, file.id, extracted.text);
+
       for (const chunk of chunks) {
         await createMemory({
           id: crypto.randomUUID(),
@@ -156,6 +175,15 @@ knowledgeRouter.post('/files/:id/ingest', async (req: AuthRequest, res, next) =>
 
       await updateKnowledgeFileStatus(file.id, req.user!.id, 'indexed', extracted.preview);
 
+      const notification = await createNotification({
+        userId: req.user!.id,
+        type: 'knowledge.ingest.complete',
+        title: '知识库文件已索引',
+        body: `${file.display_name} 已提取 ${chunks.length} 个片段并写入记忆。`,
+        data: { fileId: file.id, chunks: chunks.length },
+      });
+      emitNotification(req.user!.id, notification);
+
       res.json({
         success: true,
         data: {
@@ -166,8 +194,41 @@ knowledgeRouter.post('/files/:id/ingest', async (req: AuthRequest, res, next) =>
       });
     } catch (error) {
       await updateKnowledgeFileStatus(file.id, req.user!.id, 'failed');
+
+      const notification = await createNotification({
+        userId: req.user!.id,
+        type: 'knowledge.ingest.failed',
+        title: '知识库文件索引失败',
+        body: `${file.display_name} 索引失败：${(error as Error).message}`,
+        data: { fileId: file.id },
+      });
+      emitNotification(req.user!.id, notification);
+
       throw error;
     }
+  } catch (error) {
+    next(error);
+  }
+});
+
+knowledgeRouter.get('/entities', async (req: AuthRequest, res, next) => {
+  try {
+    const entities = await listKnowledgeEntitiesByUser(req.user!.id);
+    res.json({ success: true, data: entities });
+  } catch (error) {
+    next(error);
+  }
+});
+
+knowledgeRouter.get('/search', async (req: AuthRequest, res, next) => {
+  try {
+    const query = String(req.query.q || '');
+    if (!query) {
+      res.status(400).json({ success: false, error: 'Missing query parameter q' });
+      return;
+    }
+    const results = await retrieveKnowledgeChunks(req.user!.id, query, 5);
+    res.json({ success: true, data: results });
   } catch (error) {
     next(error);
   }
@@ -190,6 +251,8 @@ knowledgeRouter.delete('/files/:id', async (req: AuthRequest, res, next) => {
       fs.unlinkSync(filePath);
     }
 
+    await deleteKnowledgeChunksByFile(file.id);
+    await deleteKnowledgeEntitiesByFile(file.id);
     await deleteKnowledgeFile(file.id, req.user!.id);
     res.json({ success: true });
   } catch (error) {

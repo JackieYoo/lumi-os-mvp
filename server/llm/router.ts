@@ -5,7 +5,7 @@ import {
   LLMStreamChunk,
   LLMCompleteResponse,
 } from './types.js';
-import { openAIProvider, deepseekProvider, ollamaProvider, relayProvider } from './openai.js';
+import { openAIProvider, deepseekProvider, ollamaProvider, relayProvider, qwenProvider, doubaoProvider, kimiProvider, glmProvider, xiaomiProvider, lmStudioProvider } from './openai.js';
 import { anthropicProvider } from './anthropic.js';
 import { googleProvider } from './google.js';
 
@@ -16,6 +16,12 @@ const providers: Record<LLMProviderName, LLMProvider> = {
   anthropic: anthropicProvider,
   google: googleProvider,
   relay: relayProvider,
+  qwen: qwenProvider,
+  doubao: doubaoProvider,
+  kimi: kimiProvider,
+  glm: glmProvider,
+  xiaomi: xiaomiProvider,
+  lmstudio: lmStudioProvider,
 };
 
 export function getProvider(name: string): LLMProvider {

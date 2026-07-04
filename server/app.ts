@@ -18,6 +18,8 @@ import { notificationRouter } from './routes/notifications.js';
 import { personalityRouter } from './routes/personality.js';
 import { memoryEnhancementRouter } from './routes/memory-enhancement.js';
 import { taskRouter } from './routes/tasks.js';
+import { settingsRouter } from './routes/settings.js';
+import { toolPreferencesRouter } from './routes/tool-preferences.js';
 
 // Register built-in tools
 import './tools/built-ins/time.js';
@@ -51,6 +53,8 @@ export function createApp(): express.Application {
   app.use('/api/personality', personalityRouter);
   app.use('/api/memory-enhancement', memoryEnhancementRouter);
   app.use('/api/tasks', taskRouter);
+  app.use('/api/settings', settingsRouter);
+  app.use('/api/tools/preferences', toolPreferencesRouter);
 
   // Static files for production frontend
   if (process.env.NODE_ENV === 'production') {

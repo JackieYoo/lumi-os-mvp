@@ -7,14 +7,15 @@ import { createSession, findSessionById, listSessionsByUser, deleteSession } fro
 import { createMessage, listMessagesBySession, deleteMessagesBySession } from '../db/messages.js';
 import { listProviders } from '../llm/router.js';
 import { handleChatStream } from '../chat/engine.js';
+import { getOrCreateUserSettings } from '../db/settings.js';
 
 const chatRequestSchema = z.object({
   sessionId: z.string().optional(),
   message: z.string().min(1).max(20000),
-  provider: z.string().default('openai'),
+  provider: z.string().optional(),
   model: z.string().optional(),
-  enableMemory: z.boolean().default(true),
-  enableTools: z.boolean().default(true),
+  enableMemory: z.boolean().optional(),
+  enableTools: z.boolean().optional(),
 });
 
 export const chatRouter = Router();
@@ -85,6 +86,11 @@ chatRouter.post('/stream', requireAuth, async (req: AuthRequest, res) => {
   try {
     const body = chatRequestSchema.parse(req.body);
     sessionId = body.sessionId;
+    const userSettings = await getOrCreateUserSettings(req.user!.id);
+    const resolvedProvider = body.provider ?? userSettings.provider;
+    const resolvedModel = body.model ?? userSettings.model ?? undefined;
+    const resolvedEnableMemory = body.enableMemory ?? userSettings.enableMemory;
+    const resolvedEnableTools = body.enableTools ?? userSettings.enableTools;
 
     if (!sessionId) {
       sessionId = crypto.randomUUID();
@@ -93,8 +99,8 @@ chatRouter.post('/stream', requireAuth, async (req: AuthRequest, res) => {
         id: sessionId,
         user_id: req.user!.id,
         title: 'New Chat',
-        provider: body.provider,
-        model: body.model || null,
+        provider: resolvedProvider,
+        model: resolvedModel || null,
         created_at: now,
         updated_at: now,
       });
@@ -115,10 +121,10 @@ chatRouter.post('/stream', requireAuth, async (req: AuthRequest, res) => {
       sessionId,
       userId: req.user!.id,
       message: body.message,
-      provider: body.provider,
-      model: body.model,
-      enableMemory: body.enableMemory,
-      enableTools: body.enableTools,
+      provider: resolvedProvider,
+      model: resolvedModel,
+      enableMemory: resolvedEnableMemory,
+      enableTools: resolvedEnableTools,
       onEvent: (event) => {
         if (event.type === 'delta' && event.content) {
           fullContent += event.content;

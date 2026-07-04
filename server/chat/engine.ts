@@ -13,6 +13,7 @@ import { getOrCreatePersonalityProfile, buildPersonalityContext, evolveFromChat 
 import type { PersonalityProfile } from '../personality/types.js';
 import { emitChatEvent } from '../socket/chat.js';
 import { ChatStreamEvent } from './types.js';
+import { getUserToolPreferenceMap } from '../db/tool-preferences.js';
 
 const SYSTEM_PROMPT = `You are Lumi, a personal AI companion.
 - You are warm, concise, and helpful.
@@ -72,14 +73,21 @@ export async function handleChatStream(options: ChatOptions): Promise<void> {
     })),
   ];
 
-  const builtInTools = enableTools ? listTools() : [];
-  const mcpTools = enableTools
-    ? listMCPTools().map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.inputSchema,
-      }))
-    : [];
+  const builtInToolsRaw = enableTools ? listTools() : [];
+  const mcpToolsRaw = enableTools ? listMCPTools() : [];
+
+  const toolPreferenceMap = await getUserToolPreferenceMap(userId);
+  const isEnabled = (name: string): boolean => toolPreferenceMap[name] !== false;
+
+  const builtInTools = builtInToolsRaw.filter((tool) => isEnabled(tool.name));
+  const mcpTools = mcpToolsRaw
+    .filter((tool) => isEnabled(tool.name))
+    .map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema,
+    }));
+
   const tools = [...builtInTools, ...mcpTools];
 
   notify({ type: 'llm_reasoning' });

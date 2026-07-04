@@ -45,24 +45,21 @@ interface MCPServerForm {
   url: string;
 }
 
-const BUILT_IN_TOOLS = ['get_current_time', 'read_file', 'list_files', 'web_search'];
+interface ToolPreference {
+  toolName: string;
+  enabled: boolean;
+  source: 'builtin' | 'mcp';
+}
+
+const LEGACY_ENABLED_TOOLS_KEY = 'lumi_enabled_tools';
 
 export default function ToolMarketplace() {
   const navigate = useNavigate();
   const [tools, setTools] = useState<Tool[]>([]);
   const [mcpServers, setMcpServers] = useState<MCPServer[]>([]);
   const [mcpTools, setMcpTools] = useState<MCPToolGroup[]>([]);
-  const [enabledTools, setEnabledTools] = useState<Set<string>>(() => {
-    const raw = localStorage.getItem('lumi_enabled_tools');
-    if (raw) {
-      try {
-        return new Set(JSON.parse(raw));
-      } catch {
-        // ignore
-      }
-    }
-    return new Set(BUILT_IN_TOOLS);
-  });
+  const [enabledTools, setEnabledTools] = useState<Set<string>>(new Set());
+  const [preferencesLoading, setPreferencesLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newServer, setNewServer] = useState<MCPServerForm>({
     name: '',
@@ -75,11 +72,8 @@ export default function ToolMarketplace() {
   useEffect(() => {
     loadTools();
     loadMCPServers();
+    loadPreferences();
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('lumi_enabled_tools', JSON.stringify(Array.from(enabledTools)));
-  }, [enabledTools]);
 
   const loadTools = async () => {
     try {
@@ -112,16 +106,114 @@ export default function ToolMarketplace() {
     }
   };
 
-  const toggleTool = (name: string) => {
+  const loadPreferences = async () => {
+    try {
+      const prefs = await apiRequest<ToolPreference[]>('GET', '/tools/preferences');
+      const enabled = new Set(prefs.filter((p) => p.enabled).map((p) => p.toolName));
+      setEnabledTools(enabled);
+
+      // One-time migration from legacy localStorage
+      if (prefs.length === 0) {
+        await migrateLegacyPreferences(enabled);
+      }
+    } catch {
+      // fallback: all tools enabled by default
+      setEnabledTools(new Set());
+    } finally {
+      setPreferencesLoading(false);
+    }
+  };
+
+  const migrateLegacyPreferences = async (currentEnabled: Set<string>) => {
+    const raw = localStorage.getItem(LEGACY_ENABLED_TOOLS_KEY);
+    if (!raw) return;
+
+    try {
+      const legacy = JSON.parse(raw) as string[];
+      if (!Array.isArray(legacy)) {
+        localStorage.removeItem(LEGACY_ENABLED_TOOLS_KEY);
+        return;
+      }
+
+      const next = new Set(currentEnabled);
+      await Promise.all(
+        legacy.map((name) =>
+          apiRequest<ToolPreference>('PUT', '/tools/preferences', {
+            toolName: name,
+            enabled: true,
+            source: 'builtin',
+          }).then((pref) => {
+            if (pref.enabled) next.add(pref.toolName);
+          }),
+        ),
+      );
+      setEnabledTools(next);
+      localStorage.removeItem(LEGACY_ENABLED_TOOLS_KEY);
+    } catch {
+      // ignore migration errors
+    }
+  };
+
+  const toggleTool = async (name: string, source: 'builtin' | 'mcp' = 'builtin') => {
+    const previous = new Set(enabledTools);
+    const nextEnabled = !previous.has(name);
+
     setEnabledTools((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-      } else {
-        next.add(name);
+      if (nextEnabled) next.add(name);
+      else next.delete(name);
+      return next;
+    });
+
+    try {
+      await apiRequest('PUT', '/tools/preferences', {
+        toolName: name,
+        enabled: nextEnabled,
+        source,
+      });
+    } catch {
+      setEnabledTools(previous);
+      toast.error('保存工具偏好失败');
+    }
+  };
+
+  const isServerEnabled = (serverName: string): boolean => {
+    const group = mcpTools.find((g) => g.server === serverName);
+    if (!group || group.tools.length === 0) return true;
+    return group.tools.every((tool) => enabledTools.has(`${serverName}__${tool.name}`));
+  };
+
+  const toggleServer = async (serverName: string) => {
+    const group = mcpTools.find((g) => g.server === serverName);
+    if (!group || group.tools.length === 0) return;
+
+    const targetEnabled = !isServerEnabled(serverName);
+    const previous = new Set(enabledTools);
+
+    setEnabledTools((prev) => {
+      const next = new Set(prev);
+      for (const tool of group.tools) {
+        const qualifiedName = `${serverName}__${tool.name}`;
+        if (targetEnabled) next.add(qualifiedName);
+        else next.delete(qualifiedName);
       }
       return next;
     });
+
+    try {
+      await Promise.all(
+        group.tools.map((tool) =>
+          apiRequest('PUT', '/tools/preferences', {
+            toolName: `${serverName}__${tool.name}`,
+            enabled: targetEnabled,
+            source: 'mcp',
+          }),
+        ),
+      );
+    } catch {
+      setEnabledTools(previous);
+      toast.error('保存 MCP 服务器偏好失败');
+    }
   };
 
   const handleAddServer = async () => {
@@ -181,176 +273,200 @@ export default function ToolMarketplace() {
           </Button>
         </div>
 
-        <div className="grid gap-3">
-          {tools.map((tool) => {
-            const enabled = enabledTools.has(tool.name);
-            const expanded = expandedTools.has(tool.name);
-            return (
-              <Card key={tool.name}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-lumi-accent/20 text-lumi-accent">
-                        <Wrench size={18} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-text-primary">{tool.name}</span>
-                          {BUILT_IN_TOOLS.includes(tool.name) && <Badge variant="outline">内置</Badge>}
-                        </div>
-                        <p className="text-sm text-text-tertiary">{tool.description}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => toggleExpanded(tool.name)}
-                        className="text-text-tertiary hover:text-text-primary"
-                      >
-                        {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                      </button>
-                      <button
-                        onClick={() => toggleTool(tool.name)}
-                        className={`flex h-8 w-14 items-center rounded-full px-1 transition ${
-                          enabled ? 'bg-lumi-accent' : 'bg-celestial-surface'
-                        }`}
-                      >
-                        <div
-                          className={`h-6 w-6 rounded-full bg-white shadow-sm transition ${
-                            enabled ? 'translate-x-6' : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-
-                  {expanded && (
-                    <div className="mt-3 rounded-xl border border-celestial-border bg-celestial-deep/40 p-3">
-                      <pre className="overflow-x-auto text-xs text-text-secondary">
-                        {JSON.stringify(tool.parameters, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-text-primary">MCP 服务器</h2>
-            <p className="mt-1 text-sm text-text-tertiary">连接外部能力，让 Lumi 调用更多工具</p>
-          </div>
-          <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>
-            <Plus size={16} /> 添加
-          </Button>
-        </div>
-
-        {showAddForm && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles size={18} className="text-lumi-accent" /> 添加 MCP 服务器
-              </CardTitle>
-              <CardDescription>支持 stdio 命令或 SSE URL</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Input
-                placeholder="服务器名称"
-                value={newServer.name}
-                onChange={(e) => setNewServer((prev) => ({ ...prev, name: e.target.value }))}
-              />
-              <Input
-                placeholder="命令（可选，如 npx）"
-                value={newServer.command}
-                onChange={(e) => setNewServer((prev) => ({ ...prev, command: e.target.value }))}
-              />
-              <Input
-                placeholder="参数，用逗号分隔（可选）"
-                value={newServer.args}
-                onChange={(e) => setNewServer((prev) => ({ ...prev, args: e.target.value }))}
-              />
-              <Input
-                placeholder="URL（可选，用于 SSE）"
-                value={newServer.url}
-                onChange={(e) => setNewServer((prev) => ({ ...prev, url: e.target.value }))}
-              />
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setShowAddForm(false)}>
-                  取消
-                </Button>
-                <Button size="sm" onClick={handleAddServer}>
-                  添加
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        {preferencesLoading && (
+          <div className="py-8 text-center text-sm text-text-tertiary">加载工具偏好…</div>
         )}
 
-        <div className="grid gap-3">
-          {mcpServers.map((server) => (
-            <Card key={server.name}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-celestial-surface text-text-secondary">
-                      <Server size={18} />
-                    </div>
-                    <div>
-                      <span className="font-medium text-text-primary">{server.name}</span>
-                      <p className="text-xs text-text-tertiary">
-                        {server.toolCount !== undefined ? `${server.toolCount} 个工具` : server.url || 'stdio'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={server.connected ? 'success' : 'outline'}>
-                      {server.connected ? '已连接' : '未连接'}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteServer(server.name)}
-                      className="h-8 w-8 text-status-error hover:text-status-error"
-                    >
-                      <Trash2 size={14} />
+        {!preferencesLoading && (
+          <>
+            <div className="grid gap-3">
+              {tools.map((tool) => {
+                const enabled = enabledTools.has(tool.name);
+                const expanded = expandedTools.has(tool.name);
+                return (
+                  <Card key={tool.name}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-lumi-accent/20 text-lumi-accent">
+                            <Wrench size={18} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-text-primary">{tool.name}</span>
+                              <Badge variant="outline">内置</Badge>
+                            </div>
+                            <p className="text-sm text-text-tertiary">{tool.description}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleExpanded(tool.name)}
+                            className="text-text-tertiary hover:text-text-primary"
+                          >
+                            {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                          </button>
+                          <button
+                            onClick={() => toggleTool(tool.name, 'builtin')}
+                            className={`flex h-8 w-14 items-center rounded-full px-1 transition ${
+                              enabled ? 'bg-lumi-accent' : 'bg-celestial-surface'
+                            }`}
+                          >
+                            <div
+                              className={`h-6 w-6 rounded-full bg-white shadow-sm transition ${
+                                enabled ? 'translate-x-6' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+
+                      {expanded && (
+                        <div className="mt-3 rounded-xl border border-celestial-border bg-celestial-deep/40 p-3">
+                          <pre className="overflow-x-auto text-xs text-text-secondary">
+                            {JSON.stringify(tool.parameters, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-text-primary">MCP 服务器</h2>
+                <p className="mt-1 text-sm text-text-tertiary">连接外部能力，让 Lumi 调用更多工具</p>
+              </div>
+              <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>
+                <Plus size={16} /> 添加
+              </Button>
+            </div>
+
+            {showAddForm && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles size={18} className="text-lumi-accent" /> 添加 MCP 服务器
+                  </CardTitle>
+                  <CardDescription>支持 stdio 命令或 SSE URL</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Input
+                    placeholder="服务器名称"
+                    value={newServer.name}
+                    onChange={(e) => setNewServer((prev) => ({ ...prev, name: e.target.value }))}
+                  />
+                  <Input
+                    placeholder="命令（可选，如 npx）"
+                    value={newServer.command}
+                    onChange={(e) => setNewServer((prev) => ({ ...prev, command: e.target.value }))}
+                  />
+                  <Input
+                    placeholder="参数，用逗号分隔（可选）"
+                    value={newServer.args}
+                    onChange={(e) => setNewServer((prev) => ({ ...prev, args: e.target.value }))}
+                  />
+                  <Input
+                    placeholder="URL（可选，用于 SSE）"
+                    value={newServer.url}
+                    onChange={(e) => setNewServer((prev) => ({ ...prev, url: e.target.value }))}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setShowAddForm(false)}>
+                      取消
+                    </Button>
+                    <Button size="sm" onClick={handleAddServer}>
+                      添加
                     </Button>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+            )}
 
-                {mcpTools
-                  .find((g) => g.server === server.name)
-                  ?.tools.map((tool) => (
-                    <div
-                      key={tool.name}
-                      className="mt-3 rounded-xl border border-celestial-border bg-celestial-deep/40 p-3"
-                    >
+            <div className="grid gap-3">
+              {mcpServers.map((server) => {
+                const serverEnabled = isServerEnabled(server.name);
+                return (
+                  <Card key={server.name}>
+                    <CardContent className="p-4">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-sm text-lumi-accent-soft">{tool.name}</span>
-                        <button
-                          onClick={() => toggleExpanded(tool.name)}
-                          className="text-text-tertiary hover:text-text-primary"
-                        >
-                          {expandedTools.has(tool.name) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-celestial-surface text-text-secondary">
+                            <Server size={18} />
+                          </div>
+                          <div>
+                            <span className="font-medium text-text-primary">{server.name}</span>
+                            <p className="text-xs text-text-tertiary">
+                              {server.toolCount !== undefined ? `${server.toolCount} 个工具` : server.url || 'stdio'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={server.connected ? 'success' : 'outline'}>
+                            {server.connected ? '已连接' : '未连接'}
+                          </Badge>
+                          <button
+                            onClick={() => toggleServer(server.name)}
+                            className={`flex h-8 w-14 items-center rounded-full px-1 transition ${
+                              serverEnabled ? 'bg-lumi-accent' : 'bg-celestial-surface'
+                            }`}
+                            title={serverEnabled ? '禁用此服务器' : '启用此服务器'}
+                          >
+                            <div
+                              className={`h-6 w-6 rounded-full bg-white shadow-sm transition ${
+                                serverEnabled ? 'translate-x-6' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteServer(server.name)}
+                            className="h-8 w-8 text-status-error hover:text-status-error"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
                       </div>
-                      <p className="text-xs text-text-tertiary">{tool.description}</p>
-                      {expandedTools.has(tool.name) && (
-                        <pre className="mt-2 overflow-x-auto text-xs text-text-secondary">
-                          {JSON.stringify(tool.parameters, null, 2)}
-                        </pre>
-                      )}
-                    </div>
-                  ))}
-              </CardContent>
-            </Card>
-          ))}
-          {mcpServers.length === 0 && !showAddForm && (
-            <div className="rounded-2xl border border-dashed border-celestial-border-strong bg-celestial-deep/20 py-10 text-center text-sm text-text-tertiary">
-              暂无 MCP 服务器配置
+
+                      {mcpTools
+                        .find((g) => g.server === server.name)
+                        ?.tools.map((tool) => (
+                          <div
+                            key={tool.name}
+                            className="mt-3 rounded-xl border border-celestial-border bg-celestial-deep/40 p-3"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono text-sm text-lumi-accent-soft">{tool.name}</span>
+                              <button
+                                onClick={() => toggleExpanded(tool.name)}
+                                className="text-text-tertiary hover:text-text-primary"
+                              >
+                                {expandedTools.has(tool.name) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                              </button>
+                            </div>
+                            <p className="text-xs text-text-tertiary">{tool.description}</p>
+                            {expandedTools.has(tool.name) && (
+                              <pre className="mt-2 overflow-x-auto text-xs text-text-secondary">
+                                {JSON.stringify(tool.parameters, null, 2)}
+                              </pre>
+                            )}
+                          </div>
+                        ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              {mcpServers.length === 0 && !showAddForm && (
+                <div className="rounded-2xl border border-dashed border-celestial-border-strong bg-celestial-deep/20 py-10 text-center text-sm text-text-tertiary">
+                  暂无 MCP 服务器配置
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </AppLayout>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   User,
   Lock,
@@ -18,6 +18,13 @@ import { Input } from '../components/ui/Input.js';
 import { Select } from '../components/ui/Select.js';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card.js';
 import { toast } from 'sonner';
+import {
+  DEFAULT_USER_SETTINGS,
+  getLegacySettings,
+  mergeUserSettings,
+  saveLegacySettings,
+  type UserSettings,
+} from '../types/settings.js';
 
 interface ProviderInfo {
   name: string;
@@ -43,22 +50,13 @@ const providerModels: Record<string, string[]> = {
 export default function Profile() {
   const { user, logout } = useAuth();
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [settings, setSettings] = useState(() => {
-    const raw = localStorage.getItem('lumi_settings');
-    if (raw) {
-      try {
-        return JSON.parse(raw);
-      } catch {
-        // ignore
-      }
-    }
-    return {
-      provider: 'openai',
-      model: '',
-      enableMemory: true,
-      enableTools: true,
-    };
-  });
+  const [settings, setSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS);
+  const settingsRef = useRef(settings);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -73,8 +71,41 @@ export default function Profile() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('lumi_settings', JSON.stringify(settings));
-  }, [settings]);
+    const loadSettings = async () => {
+      try {
+        const remoteSettings = await apiRequest<UserSettings>('GET', '/settings');
+        const legacySettings = getLegacySettings();
+        const isRemoteDefault =
+          remoteSettings.provider === DEFAULT_USER_SETTINGS.provider &&
+          remoteSettings.model === DEFAULT_USER_SETTINGS.model &&
+          remoteSettings.enableMemory === DEFAULT_USER_SETTINGS.enableMemory &&
+          remoteSettings.enableTools === DEFAULT_USER_SETTINGS.enableTools &&
+          remoteSettings.defaultVoice === DEFAULT_USER_SETTINGS.defaultVoice &&
+          remoteSettings.defaultPersonaMode === DEFAULT_USER_SETTINGS.defaultPersonaMode &&
+          Object.keys(remoteSettings.notifications).length === 0;
+
+        if (legacySettings && isRemoteDefault) {
+          const migrated = mergeUserSettings(remoteSettings, legacySettings);
+          const saved = await apiRequest<UserSettings>('PUT', '/settings', migrated);
+          setSettings(saved);
+          saveLegacySettings(saved);
+          return;
+        }
+
+        setSettings(remoteSettings);
+        saveLegacySettings(remoteSettings);
+      } catch {
+        const legacySettings = getLegacySettings();
+        if (legacySettings) {
+          setSettings(mergeUserSettings(DEFAULT_USER_SETTINGS, legacySettings));
+        }
+      } finally {
+        setSettingsLoading(false);
+      }
+    };
+
+    void loadSettings();
+  }, []);
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
@@ -111,13 +142,38 @@ export default function Profile() {
     }
   };
 
+  const updateSettings = async (partial: Partial<UserSettings>) => {
+    const previous = settingsRef.current;
+    const next = mergeUserSettings(previous, partial);
+    setSettings(next);
+    settingsRef.current = next;
+    saveLegacySettings(next);
+
+    try {
+      const saved = await apiRequest<UserSettings>('PUT', '/settings', partial);
+      setSettings(saved);
+      settingsRef.current = saved;
+      saveLegacySettings(saved);
+    } catch {
+      setSettings(previous);
+      settingsRef.current = previous;
+      toast.error('保存失败，已恢复');
+    }
+  };
+
   const models = providerModels[settings.provider] || [];
 
   return (
     <AppLayout title="个人中心" sidebarProps={{ sessions: [] }}>
       <div className="mx-auto flex h-full max-w-3xl flex-col gap-5 overflow-y-auto p-4 lg:p-6">
-        {/* Hero card */}
-        <Card className="relative overflow-hidden">
+        {settingsLoading && (
+          <div className="py-12 text-center text-sm text-text-tertiary">加载设置中…</div>
+        )}
+
+        {!settingsLoading && (
+          <>
+            {/* Hero card */}
+            <Card className="relative overflow-hidden">
           <div className="absolute right-0 top-0 h-32 w-32 bg-gradient-to-bl from-lumi-accent/15 to-transparent" />
           <CardContent className="relative flex items-center gap-4 p-6">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-lumi-accent/30 to-lumi-accent/10 text-lumi-accent ring-1 ring-lumi-accent/30">
@@ -143,11 +199,10 @@ export default function Profile() {
                 label="LLM 提供商"
                 value={settings.provider}
                 onChange={(e) =>
-                  setSettings((prev: typeof settings) => ({
-                    ...prev,
+                  void updateSettings({
                     provider: e.target.value,
-                    model: providerModels[e.target.value]?.[0] || '',
-                  }))
+                    model: providerModels[e.target.value]?.[0] || null,
+                  })
                 }
               >
                 {providers.map((p) => (
@@ -161,9 +216,9 @@ export default function Profile() {
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-text-secondary">模型（自定义）</label>
                   <Input
-                    value={settings.model}
+                    value={settings.model ?? ''}
                     onChange={(e) =>
-                      setSettings((prev: typeof settings) => ({ ...prev, model: e.target.value }))
+                      void updateSettings({ model: e.target.value || null })
                     }
                     placeholder="例如：gpt-4o-mini"
                   />
@@ -171,9 +226,9 @@ export default function Profile() {
               ) : (
                 <Select
                   label="模型"
-                  value={settings.model}
+                  value={settings.model ?? ''}
                   onChange={(e) =>
-                    setSettings((prev: typeof settings) => ({ ...prev, model: e.target.value }))
+                    void updateSettings({ model: e.target.value || null })
                   }
                 >
                   {models.map((m: string) => (
@@ -189,7 +244,7 @@ export default function Profile() {
                   description="对话时检索并保存记忆"
                   checked={settings.enableMemory}
                   onChange={(checked) =>
-                    setSettings((prev: typeof settings) => ({ ...prev, enableMemory: checked }))
+                    void updateSettings({ enableMemory: checked })
                   }
                 />
                 <ToggleRow
@@ -198,7 +253,7 @@ export default function Profile() {
                   description="允许 Lumi 调用内置与 MCP 工具"
                   checked={settings.enableTools}
                   onChange={(checked) =>
-                    setSettings((prev: typeof settings) => ({ ...prev, enableTools: checked }))
+                    void updateSettings({ enableTools: checked })
                   }
                 />
               </div>
@@ -264,9 +319,11 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        <Button variant="danger" onClick={logout} className="w-full">
-          <LogOut size={16} /> 退出登录
-        </Button>
+            <Button variant="danger" onClick={logout} className="w-full">
+              <LogOut size={16} /> 退出登录
+            </Button>
+          </>
+        )}
       </div>
     </AppLayout>
   );

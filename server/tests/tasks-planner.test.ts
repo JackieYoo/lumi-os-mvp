@@ -3,6 +3,8 @@ import { planTask } from '../tasks/planner.js';
 import * as personalityEngine from '../personality/engine.js';
 import * as memoryContext from '../memory/context.js';
 import * as llmRouter from '../llm/router.js';
+import * as settingsDb from '../db/settings.js';
+import * as toolPreferences from '../db/tool-preferences.js';
 
 vi.mock('../llm/router.js', () => ({
   completeLLM: vi.fn(),
@@ -17,11 +19,30 @@ vi.mock('../memory/context.js', () => ({
   buildMemoryContext: vi.fn(),
 }));
 
+vi.mock('../db/settings.js', () => ({
+  getOrCreateUserSettings: vi.fn(),
+}));
+
+vi.mock('../db/tool-preferences.js', () => ({
+  getUserToolPreferenceMap: vi.fn().mockResolvedValue({}),
+}));
+
 describe('Task planner', () => {
   const userId = 'planner-test-user';
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(settingsDb.getOrCreateUserSettings).mockResolvedValue({
+      userId,
+      provider: 'anthropic',
+      model: 'claude-3-5-sonnet-20241022',
+      enableMemory: true,
+      enableTools: true,
+      defaultVoice: null,
+      defaultPersonaMode: null,
+      notifications: {},
+      updatedAt: new Date().toISOString(),
+    });
   });
 
   it('plans a task from a user goal', async () => {
@@ -59,6 +80,10 @@ describe('Task planner', () => {
     expect(plan.steps[0].toolName).toBe('web_search');
     expect(plan.steps[1].toolName).toBeUndefined();
     expect(completeLLM).toHaveBeenCalledTimes(1);
+    expect(completeLLM.mock.calls[0][0]).toMatchObject({
+      provider: 'anthropic',
+      model: 'claude-3-5-sonnet-20241022',
+    });
   });
 
   it('falls back to a single step when LLM returns invalid JSON', async () => {

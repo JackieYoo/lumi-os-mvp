@@ -11,6 +11,8 @@ import {
 } from './db.js';
 import { emitTaskStepUpdate, emitTaskUpdate } from '../socket/tasks.js';
 import { createNotification } from '../db/notifications.js';
+import { getOrCreateUserSettings } from '../db/settings.js';
+import { getUserToolPreferenceMap } from '../db/tool-preferences.js';
 import { emitNotification } from '../socket/notifications.js';
 import { logger } from '../lib/logger.js';
 import { TaskStep, TaskWithLatestExecution } from './types.js';
@@ -32,9 +34,10 @@ export async function executeTask(taskId: string): Promise<void> {
   const execution = await createTaskExecution(taskId);
 
   try {
+    const toolPreferenceMap = await getUserToolPreferenceMap(task.user_id);
     const steps = task.steps.filter((s) => s.status === 'pending');
     for (const step of steps) {
-      await runStep(task, step);
+      await runStep(task, step, toolPreferenceMap);
     }
 
     const summary = await summarizeExecution(task);
@@ -103,7 +106,11 @@ async function notifyTaskFailed(task: TaskWithLatestExecution, errorMessage: str
   }
 }
 
-async function runStep(task: TaskWithLatestExecution, step: TaskStep): Promise<void> {
+async function runStep(
+  task: TaskWithLatestExecution,
+  step: TaskStep,
+  toolPreferenceMap: Record<string, boolean>,
+): Promise<void> {
   await updateTaskStepStatus(step.id, 'running');
   emitTaskStepUpdate(task.user_id, { taskId: task.id, stepId: step.id, status: 'running' });
 
@@ -111,6 +118,19 @@ async function runStep(task: TaskWithLatestExecution, step: TaskStep): Promise<v
     let result: unknown;
 
     if (step.tool_name) {
+      const isEnabled = toolPreferenceMap[step.tool_name] !== false;
+      if (!isEnabled) {
+        const errorMessage = `Tool "${step.tool_name}" is disabled by user preference`;
+        await updateTaskStepStatus(step.id, 'skipped', null, errorMessage);
+        emitTaskStepUpdate(task.user_id, {
+          taskId: task.id,
+          stepId: step.id,
+          status: 'skipped',
+          error: errorMessage,
+        });
+        return;
+      }
+
       const toolArgs = step.tool_args_json ? JSON.parse(step.tool_args_json) : {};
       result = await executeToolWithFallback(step.tool_name, toolArgs);
     } else {
@@ -149,9 +169,10 @@ async function executeToolWithFallback(toolName: string, args: Record<string, un
 }
 
 async function runReasoningStep(task: TaskWithLatestExecution, step: TaskStep): Promise<string> {
+  const settings = await getOrCreateUserSettings(task.user_id);
   const response = await completeLLM({
-    provider: 'openai',
-    model: 'gpt-4o-mini',
+    provider: settings.provider,
+    model: settings.model || undefined,
     messages: [
       {
         role: 'system',
@@ -166,6 +187,7 @@ async function runReasoningStep(task: TaskWithLatestExecution, step: TaskStep): 
 
 async function summarizeExecution(task: TaskWithLatestExecution): Promise<string> {
   try {
+    const settings = await getOrCreateUserSettings(task.user_id);
     const stepResults = task.steps
       .map((s) => {
         const result = s.result_json ? JSON.parse(s.result_json) : null;
@@ -174,8 +196,8 @@ async function summarizeExecution(task: TaskWithLatestExecution): Promise<string
       .join('\n');
 
     const response = await completeLLM({
-      provider: 'openai',
-      model: 'gpt-4o-mini',
+      provider: settings.provider,
+      model: settings.model || undefined,
       messages: [
         {
           role: 'system',

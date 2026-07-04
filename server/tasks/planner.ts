@@ -2,6 +2,10 @@ import { completeLLM } from '../llm/router.js';
 import { getOrCreatePersonalityProfile, buildPersonalityContext } from '../personality/engine.js';
 import { buildMemoryContext } from '../memory/context.js';
 import { logger } from '../lib/logger.js';
+import { getOrCreateUserSettings } from '../db/settings.js';
+import { listTools } from '../tools/registry.js';
+import { listMCPTools } from '../mcp/tools.js';
+import { getUserToolPreferenceMap } from '../db/tool-preferences.js';
 
 export interface PlannedStep {
   description: string;
@@ -19,12 +23,6 @@ const PLANNER_SYSTEM_PROMPT = `You are a task planner for a personal AI assistan
 Your job is to take the user's goal and break it into a short sequence of concrete steps.
 Each step should be actionable and may optionally specify a tool to call.
 
-Available tools include:
-- web_search: search the web with { query }
-- time: get current time
-- file_read: read a file with { path }
-- Any MCP tools registered by the user (use their qualified name like serverName__toolName)
-
 Return ONLY a JSON object in this exact shape:
 {
   "title": "Short task title",
@@ -39,15 +37,17 @@ Keep steps concise. If the goal is simple, use a single step. Do not include mar
 
 export async function planTask(userId: string, goal: string): Promise<TaskPlan> {
   try {
-    const [personalityProfile, memoryContext] = await Promise.all([
+    const [personalityProfile, memoryContext, userSettings] = await Promise.all([
       getOrCreatePersonalityProfile(userId),
       buildMemoryContext(userId, goal),
+      getOrCreateUserSettings(userId),
     ]);
 
     const personalityContext = buildPersonalityContext(personalityProfile);
+    const availableTools = await buildAvailableToolList(userId);
 
     const messages = [
-      { role: 'system' as const, content: PLANNER_SYSTEM_PROMPT },
+      { role: 'system' as const, content: `${PLANNER_SYSTEM_PROMPT}\n\n${availableTools}` },
       {
         role: 'system' as const,
         content: [
@@ -62,8 +62,8 @@ export async function planTask(userId: string, goal: string): Promise<TaskPlan> 
     ];
 
     const response = await completeLLM({
-      provider: 'openai',
-      model: 'gpt-4o-mini',
+      provider: userSettings.provider,
+      model: userSettings.model || undefined,
       messages,
       temperature: 0.3,
     });
@@ -87,6 +87,26 @@ export async function planTask(userId: string, goal: string): Promise<TaskPlan> 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);
+}
+
+async function buildAvailableToolList(userId: string): Promise<string> {
+  const prefMap = await getUserToolPreferenceMap(userId);
+  const isEnabled = (name: string): boolean => prefMap[name] !== false;
+
+  const builtinLines = listTools()
+    .filter((tool) => isEnabled(tool.name))
+    .map((tool) => `- ${tool.name}`);
+
+  const mcpLines = listMCPTools()
+    .filter((tool) => isEnabled(tool.name))
+    .map((tool) => `- ${tool.name} (MCP, qualified name)`);
+
+  const lines = [...builtinLines, ...mcpLines];
+  if (lines.length === 0) {
+    return 'No tools are currently enabled. Plan steps that do not require tool calls.';
+  }
+
+  return `Available tools include:\n${lines.join('\n')}\n\nUse the exact toolName when specifying a tool. For MCP tools, use the qualified name shown above.`;
 }
 
 interface RawPlan {

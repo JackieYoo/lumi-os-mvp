@@ -7,6 +7,8 @@ import * as toolRegistry from '../tools/registry.js';
 import * as mcpTools from '../mcp/tools.js';
 import * as llmRouter from '../llm/router.js';
 import * as taskSocket from '../socket/tasks.js';
+import * as settingsDb from '../db/settings.js';
+import * as toolPreferences from '../db/tool-preferences.js';
 
 vi.mock('../tools/registry.js', () => ({
   executeTool: vi.fn(),
@@ -25,11 +27,31 @@ vi.mock('../socket/tasks.js', () => ({
   emitTaskStepUpdate: vi.fn(),
 }));
 
+vi.mock('../db/settings.js', () => ({
+  getOrCreateUserSettings: vi.fn(),
+}));
+
+vi.mock('../db/tool-preferences.js', () => ({
+  isToolEnabledForUser: vi.fn().mockResolvedValue(true),
+  getUserToolPreferenceMap: vi.fn().mockResolvedValue({}),
+}));
+
 describe('Task execution engine', () => {
   const userId = `task-engine-test-${Date.now()}`;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(settingsDb.getOrCreateUserSettings).mockResolvedValue({
+      userId,
+      provider: 'anthropic',
+      model: 'claude-3-5-sonnet-20241022',
+      enableMemory: true,
+      enableTools: true,
+      defaultVoice: null,
+      defaultPersonaMode: null,
+      notifications: {},
+      updatedAt: new Date().toISOString(),
+    });
   });
 
   beforeAll(async () => {
@@ -66,6 +88,12 @@ describe('Task execution engine', () => {
     const executions = await listTaskExecutions(task.id);
     expect(executions[0].status).toBe('completed');
     expect(executions[0].result_summary).toBe('Summary done');
+    expect(llmRouter.completeLLM).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'anthropic',
+        model: 'claude-3-5-sonnet-20241022',
+      })
+    );
   });
 
   it('falls back to MCP tool when built-in tool is not found', async () => {
@@ -108,6 +136,29 @@ describe('Task execution engine', () => {
 
     const executions = await listTaskExecutions(task.id);
     expect(executions[0].status).toBe('failed');
+  });
+
+  it('skips step when tool is disabled by user preference', async () => {
+    const prefMap = vi.mocked(toolPreferences.getUserToolPreferenceMap);
+    prefMap.mockResolvedValue({ time: false });
+
+    const task = await createTask({ userId, title: 'Disabled tool task' });
+    await createTaskStep({
+      taskId: task.id,
+      stepIndex: 0,
+      description: 'Get time',
+      toolName: 'time',
+    });
+
+    vi.mocked(toolRegistry.executeTool).mockRejectedValue(new Error('should not be called'));
+
+    await executeTask(task.id);
+
+    const updated = await getTaskWithSteps(task.id);
+    expect(updated?.status).toBe('completed');
+    expect(updated?.steps[0].status).toBe('skipped');
+    expect(updated?.steps[0].error).toContain('disabled');
+    expect(vi.mocked(toolRegistry.executeTool)).not.toHaveBeenCalled();
   });
 
   afterAll(async () => {

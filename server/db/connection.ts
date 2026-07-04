@@ -140,6 +140,32 @@ CREATE TABLE IF NOT EXISTS personality_profiles (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS user_settings (
+  user_id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL DEFAULT 'openai',
+  model TEXT,
+  enable_memory INTEGER NOT NULL DEFAULT 1,
+  enable_tools INTEGER NOT NULL DEFAULT 1,
+  default_voice TEXT,
+  default_persona_mode TEXT,
+  notifications_json TEXT,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_tool_preferences (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  tool_name TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  source TEXT NOT NULL DEFAULT 'builtin',
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE(user_id, tool_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_tool_preferences_user ON user_tool_preferences(user_id);
+
 CREATE TABLE IF NOT EXISTS relationships (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
